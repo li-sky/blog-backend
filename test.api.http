@@ -1,0 +1,232 @@
+@host = http://localhost:8080
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwiaXNzIjoiYmxvZy1iYWNrZW5kIiwiZXhwIjoxNzY1MTAxNzkxLCJpYXQiOjE3NjUwMTUzOTF9.7EzCcKshnlYndn_C5ontYWFyAFhQCsEVvkWggZBc4-w
+
+######################################################################
+# 1. Auth 模块
+######################################################################
+
+### 1.1 初始化管理员（首次部署时使用）
+POST {{host}}/api/v1/auth/admin/init
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "email": "admin@example.com",
+  "password": "123456789012"
+}
+
+### 1.2 注册普通用户
+POST {{host}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "username": "user1",
+  "email": "user1@example.com",
+  "password": "123456789012"
+}
+
+### 1.3 登录（管理员或普通用户）
+# 执行后从响应中复制 token，手动填到文件顶部 @token 变量
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "123456789012"
+}
+
+### 1.4 获取当前登录用户信息
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{token}}
+
+
+######################################################################
+# 2. Users 模块
+######################################################################
+
+### 2.1 用户列表
+GET {{host}}/api/v1/users?limit=20&offset=0
+Authorization: Bearer {{token}}
+
+### 2.2 获取单个用户详情（示例 ID=1）
+GET {{host}}/api/v1/users/1
+Authorization: Bearer {{token}}
+
+### 2.3 更新用户信息（示例 ID=1）
+PUT {{host}}/api/v1/users/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "admin-updated",
+  "email": "admin-updated@example.com",
+  "password": "123456789012"
+}
+
+### 2.4 删除用户（示例 ID=2，谨慎执行）
+DELETE {{host}}/api/v1/users/2
+Authorization: Bearer {{token}}
+
+### 2.5 设置用户角色（示例用户 ID=1）
+PUT {{host}}/api/v1/users/1/roles
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "roleIds": [1]
+}
+
+### 2.6 创建管理员用户
+POST {{host}}/api/v1/users/admin
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "username": "admin2",
+  "email": "admin2@example.com",
+  "password": "123456789012"
+}
+
+
+######################################################################
+# 3. Roles 模块
+######################################################################
+
+### 3.1 角色列表
+GET {{host}}/api/v1/roles?limit=20&offset=0
+Authorization: Bearer {{token}}
+
+### 3.2 获取角色详情（示例 ID=1）
+GET {{host}}/api/v1/roles/1
+Authorization: Bearer {{token}}
+
+### 3.3 创建角色
+POST {{host}}/api/v1/roles
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "editor",
+  "permissions": [
+    {
+      "name": "post.manage",
+      "description": "管理文章"
+    }
+  ]
+}
+
+### 3.4 更新角色（示例 ID=1）
+PUT {{host}}/api/v1/roles/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "editor-updated",
+  "permissions": [
+    {
+      "name": "post.manage",
+      "description": "管理文章（更新）"
+    }
+  ]
+}
+
+### 3.5 删除角色（示例 ID=3，谨慎执行）
+DELETE {{host}}/api/v1/roles/3
+Authorization: Bearer {{token}}
+
+
+######################################################################
+# 4. Posts 模块
+######################################################################
+
+### 4.1 获取文章列表（已发布，无需登录）
+GET {{host}}/api/v1/posts?limit=10&offset=0&sort=created_at&order=desc
+Authorization: Bearer {{token}}
+
+### 4.2 获取文章详情（示例 ID=1）
+GET {{host}}/api/v1/posts/1
+Authorization: Bearer {{token}}
+
+### 4.3 创建文章（需要登录）
+POST {{host}}/api/v1/posts
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "第一篇文章",
+  "summary": "这是一篇测试文章",
+  "body": "# 标题\n正文内容",
+  "status": "draft"
+}
+
+### 4.4 更新文章（示例 ID=1，需要登录）
+PUT {{host}}/api/v1/posts/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "第一篇文章（更新）",
+  "summary": "更新后的摘要",
+  "body": "# 标题（更新）\n正文内容更新",
+  "status": "draft"
+}
+
+### 4.5 发布文章（示例 ID=4，需要登录）
+POST {{host}}/api/v1/posts/4/publish
+Authorization: Bearer {{token}}
+
+### 4.6 删除文章（示例 ID=2，谨慎执行，需要登录）
+DELETE {{host}}/api/v1/posts/2
+Authorization: Bearer {{token}}
+
+### 4.7 管理文章列表（需要登录，返回所有状态）
+GET {{host}}/api/v1/posts/manage?limit=10&offset=0&sort=created_at&order=desc
+Authorization: Bearer {{token}}
+
+
+######################################################################
+# 5. Comments 模块
+######################################################################
+
+### 5.1 获取文章评论列表（示例 postID=1，无需登录）
+GET {{host}}/api/v1/posts/1/comments?limit=20&offset=0
+
+### 5.2 发表评论（示例 postID=1，需要登录）
+POST {{host}}/api/v1/posts/1/comments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "body": "这是一条测试评论"
+}
+
+### 5.3 删除评论（示例 commentID=1，需要登录）
+DELETE {{host}}/api/v1/posts/1/comments/1
+Authorization: Bearer {{token}}
+
+### 5.4 设置评论可见性（示例 commentID=1，需要登录）
+PUT {{host}}/api/v1/posts/1/comments/1/visibility
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "visible": true
+}
+
+
+######################################################################
+# 6. Settings 模块
+######################################################################
+
+### 6.1 获取所有设置（无需登录）
+GET {{host}}/api/v1/settings
+
+### 6.2 更新某个设置（示例 key=site_title，需要登录）
+PUT {{host}}/api/v1/settings/site_title
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "value": "我的博客",
+  "description": "站点标题"
+}

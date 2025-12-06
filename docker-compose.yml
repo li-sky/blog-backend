@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: blog
+      POSTGRES_PASSWORD: blog
+      POSTGRES_DB: blog
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  api:
+    image: ghcr.io/li-sky/blog-backend:latest
+    # build: .  # 开发时使用本地构建，生产时使用远程镜像
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://blog:blog@db:5432/blog?sslmode=disable
+      JWT_SECRET: dev-secret-change-in-production
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  db-data:

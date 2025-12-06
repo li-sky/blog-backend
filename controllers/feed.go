@@ -138,7 +138,7 @@ func (fc *FeedController) defaultSiteURL(c *gin.Context) string {
 }
 
 func (fc *FeedController) postURL(base string, postID uint) string {
-	return fmt.Sprintf("%s/posts/%d", base, postID)
+	return fmt.Sprintf("%s/post/%d", base, postID)
 }
 
 // AtomFeed represents the root element of an Atom feed.

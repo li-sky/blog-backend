@@ -150,11 +150,5 @@ func validatePostInput(post *models.Post) error {
 	if post == nil {
 		return errors.New("post is required")
 	}
-	if post.Title == "" {
-		return errors.New("title is required")
-	}
-	if post.Body == "" {
-		return errors.New("body is required")
-	}
 	return nil
 }

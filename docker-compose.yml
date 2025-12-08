@@ -13,8 +13,8 @@ services:
       - db-data:/var/lib/postgresql/data
 
   api:
-    image: ghcr.io/li-sky/blog-backend:latest
-    # build: .  # 开发时使用本地构建，生产时使用远程镜像
+    # image: ghcr.io/li-sky/blog-backend:latest
+    build: .  # 开发时使用本地构建，生产时使用远程镜像
     depends_on:
       - db
     environment:

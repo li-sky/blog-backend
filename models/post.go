@@ -9,9 +9,9 @@ import (
 type Post struct {
 	gorm.Model
 
-	Title   string `json:"title" gorm:"type:varchar(255);not null"`
+	Title   string `json:"title" gorm:"type:varchar(255)"`
 	Summary string `json:"summary" gorm:"type:text"`
-	Body    string `json:"body" gorm:"type:text;not null"`
+	Body    string `json:"body" gorm:"type:text"`
 
 	UserID uint `json:"userId" gorm:"not null"`
 	User   User `json:"user" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`

@@ -38,3 +38,11 @@ func (s *SettingService) UpdateSetting(operator *models.User, key, value, descri
 	}
 	return s.repo.Upsert(key, value, description)
 }
+
+func (s *SettingService) CreateOrUpdate(key, value string) (*models.Setting, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return nil, errors.New("setting key is required")
+	}
+	return s.repo.Upsert(key, value, "")
+}

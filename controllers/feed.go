@@ -123,7 +123,14 @@ func (fc *FeedController) buildRSSFeed(c *gin.Context, posts []models.Post) RSSF
 
 func (fc *FeedController) getSetting(key, defaultVal string) string {
 	setting, err := fc.settingService.GetByKey(key)
-	if err != nil || setting == nil || setting.Value == "" {
+	if setting == nil || setting.Value == "" {
+		// write default value back to settings
+		setting, err = fc.settingService.CreateOrUpdate(key, defaultVal)
+		if err != nil {
+			return defaultVal
+		}
+	}
+	if err != nil {
 		return defaultVal
 	}
 	return setting.Value

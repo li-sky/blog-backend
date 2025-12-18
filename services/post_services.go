@@ -2,17 +2,16 @@ package services
 
 import (
 	"blog-backend/models"
-	"blog-backend/repositories"
 	"errors"
 	"fmt"
 	"time"
 )
 
 type PostService struct {
-	repo *repositories.PostRepository
+	repo PostRepository
 }
 
-func NewPostService(repo *repositories.PostRepository) *PostService {
+func NewPostService(repo PostRepository) *PostService {
 	return &PostService{repo: repo}
 }
 

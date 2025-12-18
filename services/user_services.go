@@ -2,13 +2,12 @@ package services
 
 import (
 	"blog-backend/models"
-	"blog-backend/repositories"
 	"errors"
 )
 
 type UserService struct {
-	repo     *repositories.UserRepository
-	roleRepo *repositories.RoleRepository
+	repo     UserRepository
+	roleRepo RoleRepository
 }
 
 const adminRoleName = "admin"
@@ -47,7 +46,8 @@ func userHasPermission(user *models.User, permissionName string) bool {
 	return false
 }
 
-func NewUserService(repo *repositories.UserRepository, roleRepo *repositories.RoleRepository) *UserService {
+
+func NewUserService(repo UserRepository, roleRepo RoleRepository) *UserService {
 	return &UserService{repo: repo, roleRepo: roleRepo}
 }
 

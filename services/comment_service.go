@@ -2,17 +2,16 @@ package services
 
 import (
 	"blog-backend/models"
-	"blog-backend/repositories"
 	"errors"
 )
 
 // CommentService encapsulates business logic for post comments.
 type CommentService struct {
-	repo     *repositories.CommentRepository
-	postRepo *repositories.PostRepository
+	repo     CommentRepository
+	postRepo PostRepository
 }
 
-func NewCommentService(repo *repositories.CommentRepository, postRepo *repositories.PostRepository) *CommentService {
+func NewCommentService(repo CommentRepository, postRepo PostRepository) *CommentService {
 	return &CommentService{repo: repo, postRepo: postRepo}
 }
 

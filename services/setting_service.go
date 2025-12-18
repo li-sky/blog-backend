@@ -2,17 +2,16 @@ package services
 
 import (
 	"blog-backend/models"
-	"blog-backend/repositories"
 	"errors"
 	"strings"
 )
 
 // SettingService coordinates configuration management.
 type SettingService struct {
-	repo *repositories.SettingRepository
+	repo SettingRepository
 }
 
-func NewSettingService(repo *repositories.SettingRepository) *SettingService {
+func NewSettingService(repo SettingRepository) *SettingService {
 	return &SettingService{repo: repo}
 }
 

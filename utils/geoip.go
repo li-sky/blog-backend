@@ -6,19 +6,38 @@ import (
 	"time"
 )
 
+var geoipBaseURL = "https://ipapi.co"
+
+var geoipHTTPClient = &http.Client{Timeout: 2 * time.Second}
+
+// SetGeoIPBaseURLForTest overrides the GeoIP base URL.
+// Intended for tests to avoid real network calls.
+func SetGeoIPBaseURLForTest(baseURL string) {
+	geoipBaseURL = baseURL
+}
+
+// SetGeoIPHTTPClientForTest overrides the HTTP client used for GeoIP lookups.
+// Intended for tests to avoid real network calls.
+func SetGeoIPHTTPClientForTest(client *http.Client) {
+	if client == nil {
+		geoipHTTPClient = &http.Client{Timeout: 2 * time.Second}
+		return
+	}
+	geoipHTTPClient = client
+}
+
 // CountryByIP returns country name for an IP via ipapi.co; returns empty string on failure.
 func CountryByIP(ip string) string {
 	if ip == "" {
 		return ""
 	}
-	client := &http.Client{Timeout: 2 * time.Second}
-	url := "https://ipapi.co/" + ip + "/json/"
+	url := geoipBaseURL + "/" + ip + "/json/"
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return ""
 	}
 	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
+	resp, err := geoipHTTPClient.Do(req)
 	if err != nil {
 		return ""
 	}

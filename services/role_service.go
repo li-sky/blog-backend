@@ -2,7 +2,6 @@ package services
 
 import (
 	"blog-backend/models"
-	"blog-backend/repositories"
 	"errors"
 	"strings"
 )
@@ -15,10 +14,10 @@ type PermissionInput struct {
 
 // RoleService wraps role persistence with permission checks.
 type RoleService struct {
-	repo *repositories.RoleRepository
+	repo RoleRepository
 }
 
-func NewRoleService(repo *repositories.RoleRepository) *RoleService {
+func NewRoleService(repo RoleRepository) *RoleService {
 	return &RoleService{repo: repo}
 }
 

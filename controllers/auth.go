@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var generateToken = utils.GenerateToken
+
 // AuthController wires HTTP handlers to user-service auth operations.
 type AuthController struct {
 	userService *services.UserService
@@ -147,7 +149,7 @@ func buildAuthResponse(user *models.User) (*AuthResponse, error) {
 		return nil, errors.New("user is required")
 	}
 	primaryRole := derivePrimaryRole(user)
-	token, err := utils.GenerateToken(user.ID, user.Username, primaryRole)
+	token, err := generateToken(user.ID, user.Username, primaryRole)
 	if err != nil {
 		return nil, err
 	}

@@ -37,3 +37,8 @@ Thumbs.db
 dist/
 build/
 bin/
+
+# Coverage (generated locally/CI; never commit)
+coverage
+coverage.*
+coverage_*

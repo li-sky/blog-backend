@@ -16,7 +16,7 @@ func NewCommentService(repo *repositories.CommentRepository, postRepo *repositor
 	return &CommentService{repo: repo, postRepo: postRepo}
 }
 
-func (s *CommentService) AddComment(author *models.User, postID uint, body, ip string) (*models.Comment, error) {
+func (s *CommentService) AddComment(author *models.User, postID uint, body, ip, userAgent, country string) (*models.Comment, error) {
 	if author == nil || author.ID == 0 {
 		return nil, errors.New("author is required")
 	}
@@ -35,6 +35,8 @@ func (s *CommentService) AddComment(author *models.User, postID uint, body, ip s
 		Body:      body,
 		Visible:   true,
 		IPAddress: ip,
+		UserAgent: userAgent,
+		Country:   country,
 	}
 	if err := s.repo.Create(comment); err != nil {
 		return nil, err

@@ -2,8 +2,11 @@ package controllers
 
 import (
 	"blog-backend/middlewares"
+	"blog-backend/models"
 	"blog-backend/services"
+	"blog-backend/utils"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,6 +28,38 @@ type visibilityRequest struct {
 	Visible bool `json:"visible"`
 }
 
+type commentResponse struct {
+	ID        uint         `json:"id"`
+	PostID    uint         `json:"postId"`
+	UserID    uint         `json:"userId"`
+	Body      string       `json:"body"`
+	Visible   bool         `json:"visible"`
+	User      *models.User `json:"user,omitempty"`
+	UserAgent string       `json:"userAgent,omitempty"`
+	Country   string       `json:"country,omitempty"`
+	CreatedAt time.Time    `json:"createdAt"`
+	UpdatedAt time.Time    `json:"updatedAt"`
+}
+
+func toCommentResponse(c models.Comment) commentResponse {
+	var user *models.User
+	if c.User.ID != 0 {
+		user = &c.User
+	}
+	return commentResponse{
+		ID:        c.ID,
+		PostID:    c.PostID,
+		UserID:    c.UserID,
+		Body:      c.Body,
+		Visible:   c.Visible,
+		User:      user,
+		UserAgent: c.UserAgent,
+		Country:   c.Country,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
+}
+
 func (cc *CommentController) List(c *gin.Context) {
 	postID, err := parseUintParam(c, "postID")
 	if err != nil {
@@ -37,7 +72,11 @@ func (cc *CommentController) List(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": comments, "total": total})
+	responses := make([]commentResponse, 0, len(comments))
+	for _, item := range comments {
+		responses = append(responses, toCommentResponse(item))
+	}
+	c.JSON(http.StatusOK, gin.H{"items": responses, "total": total})
 }
 
 func (cc *CommentController) Create(c *gin.Context) {
@@ -56,12 +95,15 @@ func (cc *CommentController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	comment, err := cc.service.AddComment(user, postID, req.Body, c.ClientIP())
+	ip := c.ClientIP()
+	ua := c.Request.UserAgent()
+	country := utils.CountryByIP(ip)
+	comment, err := cc.service.AddComment(user, postID, req.Body, ip, ua, country)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, comment)
+	c.JSON(http.StatusCreated, toCommentResponse(*comment))
 }
 
 func (cc *CommentController) Delete(c *gin.Context) {

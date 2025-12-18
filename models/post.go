@@ -35,5 +35,7 @@ type Comment struct {
 
 	Visible bool `json:"visible" gorm:"default:true;not null"`
 
-	IPAddress string `json:"ipAddress" gorm:"type:varchar(45)"`
+	IPAddress string `json:"-" gorm:"type:varchar(45)"`
+	UserAgent string `json:"userAgent" gorm:"type:varchar(255)"`
+	Country   string `json:"country" gorm:"type:varchar(100)"`
 }

@@ -275,6 +275,7 @@
 - 是否登录：否
 - 路径参数：`postID` 文章 ID
 - 响应体：单篇文章完整对象（含 `body`）。
+- 说明：`user` 字段不会返回明文邮箱，仅提供 `emailSha256`（对邮箱 `trim + lower` 后计算 SHA-256，再输出 hex）。
 
 ### 4.3 创建文章（POST /posts）
 - 方法：`POST`

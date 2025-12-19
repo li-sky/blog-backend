@@ -37,7 +37,7 @@ func (pc *PostController) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, post)
+	c.JSON(http.StatusCreated, toPostDetailResponse(&post))
 }
 
 // Update handles PUT /posts/:id.
@@ -62,7 +62,7 @@ func (pc *PostController) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, post)
+	c.JSON(http.StatusOK, toPostDetailResponse(&post))
 }
 
 // Publish handles POST /posts/:id/publish.
@@ -115,7 +115,7 @@ func (pc *PostController) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, post)
+	c.JSON(http.StatusOK, toPostDetailResponse(post))
 }
 
 // List handles GET /posts.
@@ -183,4 +183,35 @@ func toPostListItems(posts []models.Post) []postListItem {
 		})
 	}
 	return items
+}
+
+type postDetailResponse struct {
+	ID          uint          `json:"id"`
+	Title       string        `json:"title"`
+	Summary     string        `json:"summary"`
+	Body        string        `json:"body"`
+	UserID      uint          `json:"userId"`
+	User        *userResponse `json:"user,omitempty"`
+	Status      string        `json:"status"`
+	PublishedAt *time.Time    `json:"publishedAt,omitempty"`
+	CreatedAt   time.Time     `json:"createdAt"`
+	UpdatedAt   time.Time     `json:"updatedAt"`
+}
+
+func toPostDetailResponse(post *models.Post) postDetailResponse {
+	if post == nil {
+		return postDetailResponse{}
+	}
+	return postDetailResponse{
+		ID:          post.ID,
+		Title:       post.Title,
+		Summary:     post.Summary,
+		Body:        post.Body,
+		UserID:      post.UserID,
+		User:        newUserResponse(post.User),
+		Status:      post.Status,
+		PublishedAt: post.PublishedAt,
+		CreatedAt:   post.CreatedAt,
+		UpdatedAt:   post.UpdatedAt,
+	}
 }

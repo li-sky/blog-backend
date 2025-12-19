@@ -145,6 +145,7 @@ GET {{host}}/api/v1/posts?limit=10&offset=0&sort=created_at&order=desc
 Authorization: Bearer {{token}}
 
 ### 4.2 获取文章详情（示例 ID=1）
+# user 字段同样只会返回 emailSha256，而不是明文 email。
 GET {{host}}/api/v1/posts/1
 Authorization: Bearer {{token}}
 

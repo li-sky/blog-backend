@@ -143,7 +143,16 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 			if status != "published" {
 				return nil, gorm.ErrRecordNotFound
 			}
-			return &models.Post{Model: gorm.Model{ID: id}, Status: status}, nil
+			return &models.Post{
+				Model:  gorm.Model{ID: id},
+				Status: status,
+				UserID: 2,
+				User: models.User{
+					Model:    gorm.Model{ID: 2},
+					Username: "author",
+					Email:    "author@example.com",
+				},
+			}, nil
 		},
 		list: func(offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) {
 			return []models.Post{{Model: gorm.Model{ID: 1}}}, 1, nil
@@ -190,6 +199,14 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	req = httptest.NewRequest(http.MethodGet, "/posts/1", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
+	var detailPayload map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &detailPayload))
+	userField, ok := detailPayload["user"].(map[string]any)
+	require.True(t, ok)
+	_, hasEmail := userField["email"]
+	require.False(t, hasEmail)
+	require.Equal(t, emailSHA256("author@example.com"), userField["emailSha256"])
+	require.Equal(t, float64(2), userField["id"])
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/posts?limit=1&offset=0&sort=created_at&order=desc", nil)
@@ -197,6 +214,7 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	require.Equal(t, http.StatusOK, w.Code)
 
 	var listPayload map[string]any
+	listPayload = map[string]any{}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listPayload))
 	items, ok := listPayload["items"].([]any)
 	require.True(t, ok)

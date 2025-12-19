@@ -256,9 +256,10 @@
     {
       "id": 1,
       "title": "文章标题",
-      "slug": "wen-zhang-biao-ti",
-      "content": "markdown or html",
+      "summary": "文章摘要",
+      "userId": 2,
       "status": "published",
+      "publishedAt": "2025-01-01T00:00:00Z",
       "createdAt": "2025-01-01T00:00:00Z",
       "updatedAt": "2025-01-01T00:00:00Z"
     }
@@ -266,13 +267,14 @@
   "total": 1
 }
 ```
+- 说明：列表 DTO 不再包含 `body`（正文），如需正文请调用「获取文章详情」。
 
 ### 4.2 获取文章详情（已发布）
 - 方法：`GET`
 - 路径：`/api/v1/posts/:postID`
 - 是否登录：否
 - 路径参数：`postID` 文章 ID
-- 响应体：单篇文章对象，字段参考上方列表中的 item。
+- 响应体：单篇文章完整对象（含 `body`）。
 
 ### 4.3 创建文章（POST /posts）
 - 方法：`POST`

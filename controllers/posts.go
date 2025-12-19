@@ -6,6 +6,7 @@ import (
 	"blog-backend/services"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -127,8 +128,9 @@ func (pc *PostController) List(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	items := toPostListItems(posts)
 	c.JSON(http.StatusOK, gin.H{
-		"items": posts,
+		"items": items,
 		"total": total,
 	})
 }
@@ -148,8 +150,37 @@ func (pc *PostController) ListManage(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
+	items := toPostListItems(posts)
 	c.JSON(http.StatusOK, gin.H{
-		"items": posts,
+		"items": items,
 		"total": total,
 	})
+}
+
+type postListItem struct {
+	ID          uint       `json:"id"`
+	Title       string     `json:"title"`
+	Summary     string     `json:"summary"`
+	UserID      uint       `json:"userId"`
+	Status      string     `json:"status"`
+	PublishedAt *time.Time `json:"publishedAt,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+}
+
+func toPostListItems(posts []models.Post) []postListItem {
+	items := make([]postListItem, 0, len(posts))
+	for _, p := range posts {
+		items = append(items, postListItem{
+			ID:          p.ID,
+			Title:       p.Title,
+			Summary:     p.Summary,
+			UserID:      p.UserID,
+			Status:      p.Status,
+			PublishedAt: p.PublishedAt,
+			CreatedAt:   p.CreatedAt,
+			UpdatedAt:   p.UpdatedAt,
+		})
+	}
+	return items
 }

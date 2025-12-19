@@ -196,10 +196,30 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
+	var listPayload map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listPayload))
+	items, ok := listPayload["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	entry, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(1), entry["id"])
+	_, hasBody := entry["body"]
+	require.False(t, hasBody)
+
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/posts/manage", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
+	listPayload = map[string]any{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listPayload))
+	items, ok = listPayload["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	entry, ok = items[0].(map[string]any)
+	require.True(t, ok)
+	_, hasBody = entry["body"]
+	require.False(t, hasBody)
 }
 
 func TestPostController_ErrorBranches(t *testing.T) {

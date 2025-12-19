@@ -140,6 +140,7 @@ Authorization: Bearer {{token}}
 ######################################################################
 
 ### 4.1 获取文章列表（已发布，无需登录）
+# 说明：列表 DTO 不再返回 body 内容，如需正文请请求单篇详情。
 GET {{host}}/api/v1/posts?limit=10&offset=0&sort=created_at&order=desc
 Authorization: Bearer {{token}}
 
@@ -180,6 +181,7 @@ DELETE {{host}}/api/v1/posts/2
 Authorization: Bearer {{token}}
 
 ### 4.7 管理文章列表（需要登录，返回所有状态）
+# 与公开列表共用 DTO，同样不会返回 body。
 GET {{host}}/api/v1/posts/manage?limit=10&offset=0&sort=created_at&order=desc
 Authorization: Bearer {{token}}
 

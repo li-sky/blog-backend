@@ -11,8 +11,10 @@ import (
 
 type settingRepoStub struct{}
 
-func (settingRepoStub) List() ([]models.Setting, error)                         { return nil, nil }
-func (settingRepoStub) GetByKey(key string) (*models.Setting, error)            { return nil, errors.New("not found") }
+func (settingRepoStub) List() ([]models.Setting, error) { return nil, nil }
+func (settingRepoStub) GetByKey(key string) (*models.Setting, error) {
+	return nil, errors.New("not found")
+}
 func (settingRepoStub) Upsert(key, value, description string) (*models.Setting, error) {
 	return &models.Setting{Key: key, Value: value, Desc: description}, nil
 }

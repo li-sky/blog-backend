@@ -33,7 +33,9 @@ func TestPostService_UpdatePost_SetsPublishedAtAndUnsets(t *testing.T) {
 	require.NoError(t, err)
 
 	svc2 := NewPostService(postRepoStub{
-		getByID: func(id uint) (*models.Post, error) { return &models.Post{Model: gorm.Model{ID: 1}, Status: "published"}, nil },
+		getByID: func(id uint) (*models.Post, error) {
+			return &models.Post{Model: gorm.Model{ID: 1}, Status: "published"}, nil
+		},
 		update: func(post *models.Post) error {
 			require.Equal(t, "archived", post.Status)
 			require.Nil(t, post.PublishedAt)
@@ -53,7 +55,9 @@ func TestPostService_PublishPost_NoOpAndUpdate(t *testing.T) {
 	require.NoError(t, svcNoOp.PublishPost(editor, 1))
 
 	svcUpdate := NewPostService(postRepoStub{
-		getByID: func(id uint) (*models.Post, error) { return &models.Post{Model: gorm.Model{ID: id}, Status: "draft"}, nil },
+		getByID: func(id uint) (*models.Post, error) {
+			return &models.Post{Model: gorm.Model{ID: id}, Status: "draft"}, nil
+		},
 		update: func(post *models.Post) error {
 			require.Equal(t, "published", post.Status)
 			require.NotNil(t, post.PublishedAt)
@@ -73,7 +77,9 @@ func TestPostService_GetAndList_Validation(t *testing.T) {
 
 	svc2 := NewPostService(postRepoStub{
 		getByID: func(id uint) (*models.Post, error) { return &models.Post{Model: gorm.Model{ID: id}}, nil },
-		getByIDStatus: func(id uint, status string) (*models.Post, error) { return &models.Post{Model: gorm.Model{ID: id}, Status: status}, nil },
+		getByIDStatus: func(id uint, status string) (*models.Post, error) {
+			return &models.Post{Model: gorm.Model{ID: id}, Status: status}, nil
+		},
 	})
 	p, err := svc2.GetPost(1)
 	require.NoError(t, err)
@@ -100,7 +106,7 @@ func TestPostService_ListAllPosts_PermissionDeniedAndAllowed(t *testing.T) {
 func TestPostService_CreatePost_InvalidStatus(t *testing.T) {
 	author := permUser(1, "create_post")
 	svc := NewPostService(postRepoStub{})
-	
+
 	err := svc.CreatePost(author, &models.Post{Status: "nope"})
 	require.Error(t, err)
 }

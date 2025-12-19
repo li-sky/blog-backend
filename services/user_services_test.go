@@ -11,13 +11,13 @@ import (
 )
 
 type userRepoStub struct {
-	create         func(user *models.User) error
-	getByID        func(id uint) (*models.User, error)
-	getByUsername  func(username string) (*models.User, error)
-	getByEmail     func(email string) (*models.User, error)
-	list           func(offset, limit int) ([]models.User, int64, error)
-	update         func(user *models.User) error
-	delete         func(id uint) error
+	create          func(user *models.User) error
+	getByID         func(id uint) (*models.User, error)
+	getByUsername   func(username string) (*models.User, error)
+	getByEmail      func(email string) (*models.User, error)
+	list            func(offset, limit int) ([]models.User, int64, error)
+	update          func(user *models.User) error
+	delete          func(id uint) error
 	hasUserWithRole func(roleName string) (bool, error)
 }
 
@@ -97,17 +97,19 @@ func (s roleRepoStub) ReplacePermissions(role *models.Role, permissions []models
 	return nil
 }
 func (s roleRepoStub) List(offset, limit int) ([]models.Role, int64, error) { return nil, 0, nil }
-func (s roleRepoStub) GetByID(id uint) (*models.Role, error)              { return nil, errors.New("not found") }
-func (s roleRepoStub) GetByName(name string) (*models.Role, error)        { return nil, errors.New("not found") }
+func (s roleRepoStub) GetByID(id uint) (*models.Role, error)                { return nil, errors.New("not found") }
+func (s roleRepoStub) GetByName(name string) (*models.Role, error) {
+	return nil, errors.New("not found")
+}
 func (s roleRepoStub) GetByIDs(ids []uint) ([]models.Role, error) {
 	if s.getByIDs != nil {
 		return s.getByIDs(ids)
 	}
 	return nil, errors.New("not found")
 }
-func (s roleRepoStub) Create(role *models.Role) error                              { return nil }
-func (s roleRepoStub) Update(role *models.Role) error                              { return nil }
-func (s roleRepoStub) Delete(id uint) error                                        { return nil }
+func (s roleRepoStub) Create(role *models.Role) error { return nil }
+func (s roleRepoStub) Update(role *models.Role) error { return nil }
+func (s roleRepoStub) Delete(id uint) error           { return nil }
 
 func TestUserService_Register_PasswordTooShort(t *testing.T) {
 	svc := NewUserService(userRepoStub{}, roleRepoStub{})

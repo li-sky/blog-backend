@@ -21,7 +21,7 @@ func TestCountryByIP_SuccessCountryName(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")		
+		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"country_name":"China","country":"CN"}`))
 	}))
 	SetGeoIPBaseURLForTest(srv.URL)

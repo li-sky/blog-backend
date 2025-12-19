@@ -87,7 +87,7 @@ func TestPostService_CreatePost_SetsDefaultsAndPublishedAt(t *testing.T) {
 func TestPostService_CreatePost_PermissionDenied(t *testing.T) {
 	author := &models.User{Model: gorm.Model{ID: 7}}
 	svc := NewPostService(postRepoStub{})
-	
+
 	err := svc.CreatePost(author, &models.Post{Title: "t"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "permission denied")

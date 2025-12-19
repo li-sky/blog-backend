@@ -1,8 +1,10 @@
 package config
 
-import "testing"
+import (
+	"testing"
 
-import "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
+)
 
 func TestParseEnvInt_Fallback(t *testing.T) {
 	t.Setenv("X", "")

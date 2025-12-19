@@ -136,7 +136,9 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	gin.SetMode(gin.TestMode)
 
 	postSvc := services.NewPostService(postRepoCtrlStub{
-		getByID: func(id uint) (*models.Post, error) { return &models.Post{Model: gorm.Model{ID: id}, Status: "draft"}, nil },
+		getByID: func(id uint) (*models.Post, error) {
+			return &models.Post{Model: gorm.Model{ID: id}, Status: "draft"}, nil
+		},
 		getByIDStatus: func(id uint, status string) (*models.Post, error) {
 			if status != "published" {
 				return nil, gorm.ErrRecordNotFound
@@ -156,7 +158,9 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	pc := NewPostController(postSvc)
 
 	r := gin.New()
-	r.Use(func(c *gin.Context) { c.Set("currentUser", controllerUser(1, "edit_post", "publish_post", "delete_post")) })
+	r.Use(func(c *gin.Context) {
+		c.Set("currentUser", controllerUser(1, "edit_post", "publish_post", "delete_post"))
+	})
 	r.PUT("/posts/:postID", pc.Update)
 	r.POST("/posts/:postID/publish", pc.Publish)
 	r.DELETE("/posts/:postID", pc.Delete)
@@ -202,11 +206,13 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	postSvc := services.NewPostService(postRepoCtrlStub{
-		getByID: func(id uint) (*models.Post, error) { return nil, gorm.ErrRecordNotFound },
+		getByID:       func(id uint) (*models.Post, error) { return nil, gorm.ErrRecordNotFound },
 		getByIDStatus: func(id uint, status string) (*models.Post, error) { return nil, gorm.ErrRecordNotFound },
-		listByStatus:  func(status string, offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) { return nil, 0, errors.New("boom") },
-		delete:        func(id uint) error { return errors.New("boom") },
-		update:        func(post *models.Post) error { return errors.New("boom") },
+		listByStatus: func(status string, offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) {
+			return nil, 0, errors.New("boom")
+		},
+		delete: func(id uint) error { return errors.New("boom") },
+		update: func(post *models.Post) error { return errors.New("boom") },
 	})
 	pc := NewPostController(postSvc)
 

@@ -16,17 +16,19 @@ import (
 )
 
 type roleRepoCtrlStub struct {
-	list  func(offset, limit int) ([]models.Role, int64, error)
-	get   func(id uint) (*models.Role, error)
-	getByIDs func(ids []uint) ([]models.Role, error)
-	create func(role *models.Role) error
-	update func(role *models.Role) error
-	delete func(id uint) error
-	ensurePermission func(name, description string) (*models.Permission, error)
+	list               func(offset, limit int) ([]models.Role, int64, error)
+	get                func(id uint) (*models.Role, error)
+	getByIDs           func(ids []uint) ([]models.Role, error)
+	create             func(role *models.Role) error
+	update             func(role *models.Role) error
+	delete             func(id uint) error
+	ensurePermission   func(name, description string) (*models.Permission, error)
 	replacePermissions func(role *models.Role, permissions []models.Permission) error
 }
 
-func (s roleRepoCtrlStub) EnsureRole(name string) (*models.Role, error) { return &models.Role{Name: name}, nil }
+func (s roleRepoCtrlStub) EnsureRole(name string) (*models.Role, error) {
+	return &models.Role{Name: name}, nil
+}
 func (s roleRepoCtrlStub) EnsurePermission(name, description string) (*models.Permission, error) {
 	if s.ensurePermission != nil {
 		return s.ensurePermission(name, description)
@@ -41,14 +43,20 @@ func (s roleRepoCtrlStub) ReplacePermissions(role *models.Role, permissions []mo
 	return nil
 }
 func (s roleRepoCtrlStub) List(offset, limit int) ([]models.Role, int64, error) {
-	if s.list != nil { return s.list(offset, limit) }
+	if s.list != nil {
+		return s.list(offset, limit)
+	}
 	return nil, 0, nil
 }
 func (s roleRepoCtrlStub) GetByID(id uint) (*models.Role, error) {
-	if s.get != nil { return s.get(id) }
+	if s.get != nil {
+		return s.get(id)
+	}
 	return nil, gorm.ErrRecordNotFound
 }
-func (s roleRepoCtrlStub) GetByName(name string) (*models.Role, error) { return nil, gorm.ErrRecordNotFound }
+func (s roleRepoCtrlStub) GetByName(name string) (*models.Role, error) {
+	return nil, gorm.ErrRecordNotFound
+}
 func (s roleRepoCtrlStub) GetByIDs(ids []uint) ([]models.Role, error) {
 	if s.getByIDs != nil {
 		return s.getByIDs(ids)
@@ -60,15 +68,21 @@ func (s roleRepoCtrlStub) GetByIDs(ids []uint) ([]models.Role, error) {
 	return roles, nil
 }
 func (s roleRepoCtrlStub) Create(role *models.Role) error {
-	if s.create != nil { return s.create(role) }
+	if s.create != nil {
+		return s.create(role)
+	}
 	return nil
 }
 func (s roleRepoCtrlStub) Update(role *models.Role) error {
-	if s.update != nil { return s.update(role) }
+	if s.update != nil {
+		return s.update(role)
+	}
 	return nil
 }
 func (s roleRepoCtrlStub) Delete(id uint) error {
-	if s.delete != nil { return s.delete(id) }
+	if s.delete != nil {
+		return s.delete(id)
+	}
 	return nil
 }
 
@@ -76,8 +90,10 @@ func TestRoleController_CRUD(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := roleRepoCtrlStub{
-		list: func(offset, limit int) ([]models.Role, int64, error) { return []models.Role{{Model: gorm.Model{ID: 1}, Name: "r"}}, 1, nil },
-		get:  func(id uint) (*models.Role, error) { return &models.Role{Model: gorm.Model{ID: id}, Name: "r"}, nil },
+		list: func(offset, limit int) ([]models.Role, int64, error) {
+			return []models.Role{{Model: gorm.Model{ID: 1}, Name: "r"}}, 1, nil
+		},
+		get:    func(id uint) (*models.Role, error) { return &models.Role{Model: gorm.Model{ID: id}, Name: "r"}, nil },
 		delete: func(id uint) error { return nil },
 		create: func(role *models.Role) error { role.Model = gorm.Model{ID: 2}; return nil },
 		update: func(role *models.Role) error { return nil },

@@ -17,27 +17,34 @@ type stubUserRepo struct {
 	getByID func(id uint) (*models.User, error)
 }
 
-func (s stubUserRepo) Create(user *models.User) error                                { return nil }
-func (s stubUserRepo) GetByID(id uint) (*models.User, error)                          { return s.getByID(id) }
-func (s stubUserRepo) GetByUsername(username string) (*models.User, error)            { return nil, nil }
-func (s stubUserRepo) GetByEmail(email string) (*models.User, error)                  { return nil, nil }
-func (s stubUserRepo) List(offset, limit int) ([]models.User, int64, error)           { return nil, 0, nil }
-func (s stubUserRepo) Update(user *models.User) error                                 { return nil }
-func (s stubUserRepo) Delete(id uint) error                                            { return nil }
-func (s stubUserRepo) HasUserWithRole(roleName string) (bool, error)                   { return false, nil }
+func (s stubUserRepo) Create(user *models.User) error                       { return nil }
+func (s stubUserRepo) GetByID(id uint) (*models.User, error)                { return s.getByID(id) }
+func (s stubUserRepo) GetByUsername(username string) (*models.User, error)  { return nil, nil }
+func (s stubUserRepo) GetByEmail(email string) (*models.User, error)        { return nil, nil }
+func (s stubUserRepo) List(offset, limit int) ([]models.User, int64, error) { return nil, 0, nil }
+func (s stubUserRepo) Update(user *models.User) error                       { return nil }
+func (s stubUserRepo) Delete(id uint) error                                 { return nil }
+func (s stubUserRepo) HasUserWithRole(roleName string) (bool, error)        { return false, nil }
 
 type stubRoleRepo struct{}
 
-func (stubRoleRepo) EnsureRole(name string) (*models.Role, error)                                   { return &models.Role{Name: name}, nil }
-func (stubRoleRepo) EnsurePermission(name, description string) (*models.Permission, error)          { return &models.Permission{Name: name, Description: description}, nil }
-func (stubRoleRepo) ReplacePermissions(role *models.Role, permissions []models.Permission) error    { role.Permissions = permissions; return nil }
-func (stubRoleRepo) List(offset, limit int) ([]models.Role, int64, error)                           { return nil, 0, nil }
-func (stubRoleRepo) GetByID(id uint) (*models.Role, error)                                          { return nil, nil }
-func (stubRoleRepo) GetByName(name string) (*models.Role, error)                                    { return nil, nil }
-func (stubRoleRepo) GetByIDs(ids []uint) ([]models.Role, error)                                     { return nil, nil }
-func (stubRoleRepo) Create(role *models.Role) error                                                 { return nil }
-func (stubRoleRepo) Update(role *models.Role) error                                                 { return nil }
-func (stubRoleRepo) Delete(id uint) error                                                            { return nil }
+func (stubRoleRepo) EnsureRole(name string) (*models.Role, error) {
+	return &models.Role{Name: name}, nil
+}
+func (stubRoleRepo) EnsurePermission(name, description string) (*models.Permission, error) {
+	return &models.Permission{Name: name, Description: description}, nil
+}
+func (stubRoleRepo) ReplacePermissions(role *models.Role, permissions []models.Permission) error {
+	role.Permissions = permissions
+	return nil
+}
+func (stubRoleRepo) List(offset, limit int) ([]models.Role, int64, error) { return nil, 0, nil }
+func (stubRoleRepo) GetByID(id uint) (*models.Role, error)                { return nil, nil }
+func (stubRoleRepo) GetByName(name string) (*models.Role, error)          { return nil, nil }
+func (stubRoleRepo) GetByIDs(ids []uint) ([]models.Role, error)           { return nil, nil }
+func (stubRoleRepo) Create(role *models.Role) error                       { return nil }
+func (stubRoleRepo) Update(role *models.Role) error                       { return nil }
+func (stubRoleRepo) Delete(id uint) error                                 { return nil }
 
 func TestAuthMiddleware_MissingToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)

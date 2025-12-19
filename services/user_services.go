@@ -46,7 +46,6 @@ func userHasPermission(user *models.User, permissionName string) bool {
 	return false
 }
 
-
 func NewUserService(repo UserRepository, roleRepo RoleRepository) *UserService {
 	return &UserService{repo: repo, roleRepo: roleRepo}
 }

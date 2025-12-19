@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"blog-backend/models"
-	"testing"
 	"strings"
+	"testing"
 
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"

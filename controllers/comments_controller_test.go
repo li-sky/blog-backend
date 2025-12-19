@@ -59,15 +59,19 @@ type postRepoForCommentsStub struct {
 	getByID func(id uint) (*models.Post, error)
 }
 
-func (s postRepoForCommentsStub) Create(post *models.Post) error                                                 { return nil }
+func (s postRepoForCommentsStub) Create(post *models.Post) error { return nil }
 func (s postRepoForCommentsStub) GetByID(id uint) (*models.Post, error) {
 	if s.getByID != nil {
 		return s.getByID(id)
 	}
 	return &models.Post{Model: gorm.Model{ID: id}}, nil
 }
-func (s postRepoForCommentsStub) GetByIDAndStatus(id uint, status string) (*models.Post, error)                   { return nil, gorm.ErrRecordNotFound }
-func (s postRepoForCommentsStub) List(offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error)  { return nil, 0, nil }
+func (s postRepoForCommentsStub) GetByIDAndStatus(id uint, status string) (*models.Post, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+func (s postRepoForCommentsStub) List(offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) {
+	return nil, 0, nil
+}
 func (s postRepoForCommentsStub) ListByStatus(status string, offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) {
 	return nil, 0, nil
 }
@@ -107,15 +111,40 @@ func TestCommentController_List_BadParam_Error_Success(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 
 	svcOK := services.NewCommentService(commentRepoCtrlStub{listByPost: func(postID uint, offset, limit int) ([]models.Comment, int64, error) {
-		return []models.Comment{{Model: gorm.Model{ID: 1}, PostID: postID, UserID: 2, Body: "hi", Visible: true}}, 1, nil
+		return []models.Comment{{
+			Model:   gorm.Model{ID: 1},
+			PostID:  postID,
+			UserID:  2,
+			Body:    "hi",
+			Visible: true,
+			User: models.User{
+				Model:    gorm.Model{ID: 2},
+				Username: "alice",
+				Email:    "alice@example.com",
+			},
+		}}, 1, nil
 	}}, postRepoForCommentsStub{})
 	ccOK := NewCommentController(svcOK)
-		r = gin.New()
+	r = gin.New()
 	r.GET("/posts/:postID/comments", ccOK.List)
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/posts/1/comments?limit=1&offset=0", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &payload))
+	items, ok := payload["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 1)
+	item, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	user, ok := item["user"].(map[string]any)
+	require.True(t, ok)
+
+	_, hasEmail := user["email"]
+	require.False(t, hasEmail)
+	require.Equal(t, emailSHA256("alice@example.com"), user["emailSha256"])
 }
 
 func TestCommentController_Create_Delete_SetVisibility(t *testing.T) {

@@ -26,7 +26,9 @@ func (s *authUserRepoStub) Create(user *models.User) error {
 	s.created = append(s.created, user)
 	return nil
 }
-func (s *authUserRepoStub) GetByID(id uint) (*models.User, error) { return nil, errors.New("not found") }
+func (s *authUserRepoStub) GetByID(id uint) (*models.User, error) {
+	return nil, errors.New("not found")
+}
 func (s *authUserRepoStub) GetByUsername(username string) (*models.User, error) {
 	if u, ok := s.userByUsername[username]; ok {
 		return u, nil
@@ -40,22 +42,33 @@ func (s *authUserRepoStub) GetByEmail(email string) (*models.User, error) {
 	return nil, errors.New("not found")
 }
 func (s *authUserRepoStub) List(offset, limit int) ([]models.User, int64, error) { return nil, 0, nil }
-func (s *authUserRepoStub) Update(user *models.User) error                        { return nil }
-func (s *authUserRepoStub) Delete(id uint) error                                   { return nil }
-func (s *authUserRepoStub) HasUserWithRole(roleName string) (bool, error)          { return false, nil }
+func (s *authUserRepoStub) Update(user *models.User) error                       { return nil }
+func (s *authUserRepoStub) Delete(id uint) error                                 { return nil }
+func (s *authUserRepoStub) HasUserWithRole(roleName string) (bool, error)        { return false, nil }
 
 type authRoleRepoStub struct{}
 
-func (authRoleRepoStub) EnsureRole(name string) (*models.Role, error)                                   { return &models.Role{Name: name}, nil }
-func (authRoleRepoStub) EnsurePermission(name, description string) (*models.Permission, error)          { return &models.Permission{Name: name, Description: description}, nil }
-func (authRoleRepoStub) ReplacePermissions(role *models.Role, permissions []models.Permission) error    { role.Permissions = permissions; return nil }
-func (authRoleRepoStub) List(offset, limit int) ([]models.Role, int64, error)                           { return nil, 0, nil }
-func (authRoleRepoStub) GetByID(id uint) (*models.Role, error)                                          { return nil, errors.New("not found") }
-func (authRoleRepoStub) GetByName(name string) (*models.Role, error)                                    { return nil, errors.New("not found") }
-func (authRoleRepoStub) GetByIDs(ids []uint) ([]models.Role, error)                                     { return nil, errors.New("not found") }
-func (authRoleRepoStub) Create(role *models.Role) error                                                 { return nil }
-func (authRoleRepoStub) Update(role *models.Role) error                                                 { return nil }
-func (authRoleRepoStub) Delete(id uint) error                                                            { return nil }
+func (authRoleRepoStub) EnsureRole(name string) (*models.Role, error) {
+	return &models.Role{Name: name}, nil
+}
+func (authRoleRepoStub) EnsurePermission(name, description string) (*models.Permission, error) {
+	return &models.Permission{Name: name, Description: description}, nil
+}
+func (authRoleRepoStub) ReplacePermissions(role *models.Role, permissions []models.Permission) error {
+	role.Permissions = permissions
+	return nil
+}
+func (authRoleRepoStub) List(offset, limit int) ([]models.Role, int64, error) { return nil, 0, nil }
+func (authRoleRepoStub) GetByID(id uint) (*models.Role, error)                { return nil, errors.New("not found") }
+func (authRoleRepoStub) GetByName(name string) (*models.Role, error) {
+	return nil, errors.New("not found")
+}
+func (authRoleRepoStub) GetByIDs(ids []uint) ([]models.Role, error) {
+	return nil, errors.New("not found")
+}
+func (authRoleRepoStub) Create(role *models.Role) error { return nil }
+func (authRoleRepoStub) Update(role *models.Role) error { return nil }
+func (authRoleRepoStub) Delete(id uint) error           { return nil }
 
 func TestAuthController_Login_OK(t *testing.T) {
 	gin.SetMode(gin.TestMode)

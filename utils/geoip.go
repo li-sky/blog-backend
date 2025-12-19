@@ -47,7 +47,7 @@ func CountryByIP(ip string) string {
 	}
 	var parsed struct {
 		CountryName string `json:"country_name"`
-		Country    string `json:"country"`
+		Country     string `json:"country"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return ""

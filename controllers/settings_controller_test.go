@@ -15,21 +15,27 @@ import (
 )
 
 type settingRepoCtrlStub struct {
-	list  func() ([]models.Setting, error)
-	upsert func(key, value, desc string) (*models.Setting, error)
+	list     func() ([]models.Setting, error)
+	upsert   func(key, value, desc string) (*models.Setting, error)
 	getByKey func(key string) (*models.Setting, error)
 }
 
 func (s settingRepoCtrlStub) List() ([]models.Setting, error) {
-	if s.list != nil { return s.list() }
+	if s.list != nil {
+		return s.list()
+	}
 	return nil, nil
 }
 func (s settingRepoCtrlStub) GetByKey(key string) (*models.Setting, error) {
-	if s.getByKey != nil { return s.getByKey(key) }
+	if s.getByKey != nil {
+		return s.getByKey(key)
+	}
 	return &models.Setting{Key: key, Value: ""}, nil
 }
 func (s settingRepoCtrlStub) Upsert(key, value, description string) (*models.Setting, error) {
-	if s.upsert != nil { return s.upsert(key, value, description) }
+	if s.upsert != nil {
+		return s.upsert(key, value, description)
+	}
 	return &models.Setting{Key: key, Value: value, Desc: description}, nil
 }
 
@@ -38,7 +44,9 @@ func TestSettingController_List_And_Update(t *testing.T) {
 
 	svc := services.NewSettingService(settingRepoCtrlStub{
 		list: func() ([]models.Setting, error) { return []models.Setting{{Key: "k", Value: "v"}}, nil },
-		upsert: func(key, value, desc string) (*models.Setting, error) { return &models.Setting{Key: key, Value: value, Desc: desc}, nil },
+		upsert: func(key, value, desc string) (*models.Setting, error) {
+			return &models.Setting{Key: key, Value: value, Desc: desc}, nil
+		},
 	})
 	sc := NewSettingController(svc)
 

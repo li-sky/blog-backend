@@ -278,11 +278,15 @@ func TestCommentService_AddAndDelete_Branches(t *testing.T) {
 	err = getErr.DeleteComment(&models.User{Model: gorm.Model{ID: 1}}, 1)
 	require.Error(t, err)
 
-	permDenied := NewCommentService(commentRepoGapStub{getByID: func(id uint) (*models.Comment, error) { return &models.Comment{Model: gorm.Model{ID: 1}, UserID: 2}, nil }}, postRepoGapStub{})
+	permDenied := NewCommentService(commentRepoGapStub{getByID: func(id uint) (*models.Comment, error) {
+		return &models.Comment{Model: gorm.Model{ID: 1}, UserID: 2}, nil
+	}}, postRepoGapStub{})
 	err = permDenied.DeleteComment(&models.User{Model: gorm.Model{ID: 1}}, 1)
 	require.Error(t, err)
 
-	deleteErr := NewCommentService(commentRepoGapStub{getByID: func(id uint) (*models.Comment, error) { return &models.Comment{Model: gorm.Model{ID: 1}, UserID: 1}, nil }, delete: func(id uint) error { return errors.New("boom") }}, postRepoGapStub{})
+	deleteErr := NewCommentService(commentRepoGapStub{getByID: func(id uint) (*models.Comment, error) {
+		return &models.Comment{Model: gorm.Model{ID: 1}, UserID: 1}, nil
+	}, delete: func(id uint) error { return errors.New("boom") }}, postRepoGapStub{})
 	err = deleteErr.DeleteComment(&models.User{Model: gorm.Model{ID: 1}}, 1)
 	require.Error(t, err)
 }

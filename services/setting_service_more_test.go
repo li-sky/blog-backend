@@ -12,8 +12,10 @@ type settingRepoRecorder struct {
 	upserts int
 }
 
-func (s *settingRepoRecorder) List() ([]models.Setting, error)              { return nil, nil }
-func (s *settingRepoRecorder) GetByKey(key string) (*models.Setting, error) { return &models.Setting{Key: key, Value: ""}, nil }
+func (s *settingRepoRecorder) List() ([]models.Setting, error) { return nil, nil }
+func (s *settingRepoRecorder) GetByKey(key string) (*models.Setting, error) {
+	return &models.Setting{Key: key, Value: ""}, nil
+}
 func (s *settingRepoRecorder) Upsert(key, value, description string) (*models.Setting, error) {
 	s.upserts++
 	return &models.Setting{ID: 1, Key: key, Value: value, Desc: description}, nil

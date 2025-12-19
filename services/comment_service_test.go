@@ -10,10 +10,10 @@ import (
 )
 
 type commentRepoStub struct {
-	create func(comment *models.Comment) error
+	create  func(comment *models.Comment) error
 	getByID func(id uint) (*models.Comment, error)
-	update func(comment *models.Comment) error
-	delete func(id uint) error
+	update  func(comment *models.Comment) error
+	delete  func(id uint) error
 }
 
 func (s commentRepoStub) Create(comment *models.Comment) error {
@@ -59,7 +59,7 @@ func TestCommentService_AddComment_RequiresPost(t *testing.T) {
 
 func TestCommentService_DeleteComment_PermissionDenied(t *testing.T) {
 	requestor := &models.User{Model: gorm.Model{ID: 2}}
-	
+
 	svc := NewCommentService(commentRepoStub{
 		getByID: func(id uint) (*models.Comment, error) {
 			return &models.Comment{Model: gorm.Model{ID: id}, UserID: 999}, nil

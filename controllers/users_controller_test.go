@@ -16,13 +16,13 @@ import (
 )
 
 type userRepoCtrlStub struct {
-	list         func(offset, limit int) ([]models.User, int64, error)
-	getByID      func(id uint) (*models.User, error)
-	getByUsername func(username string) (*models.User, error)
-	getByEmail   func(email string) (*models.User, error)
-	create       func(user *models.User) error
-	update       func(user *models.User) error
-	delete       func(id uint) error
+	list            func(offset, limit int) ([]models.User, int64, error)
+	getByID         func(id uint) (*models.User, error)
+	getByUsername   func(username string) (*models.User, error)
+	getByEmail      func(email string) (*models.User, error)
+	create          func(user *models.User) error
+	update          func(user *models.User) error
+	delete          func(id uint) error
 	hasUserWithRole func(roleName string) (bool, error)
 }
 
@@ -92,7 +92,9 @@ func TestUserController_AllHandlers(t *testing.T) {
 	uc := NewUserController(svc)
 
 	r := gin.New()
-	r.Use(func(c *gin.Context) { c.Set("currentUser", controllerUser(1, "assign_roles", "edit_user", "delete_user", "create_admin_user")) })
+	r.Use(func(c *gin.Context) {
+		c.Set("currentUser", controllerUser(1, "assign_roles", "edit_user", "delete_user", "create_admin_user"))
+	})
 	r.GET("/users", uc.List)
 	r.GET("/users/:id", uc.Get)
 	r.PUT("/users/:id", uc.Update)
@@ -194,7 +196,9 @@ func TestUserController_ParseAndBindErrors(t *testing.T) {
 	uc := NewUserController(svc)
 
 	r := gin.New()
-	r.Use(func(c *gin.Context) { c.Set("currentUser", controllerUser(1, "assign_roles", "edit_user", "delete_user")) })
+	r.Use(func(c *gin.Context) {
+		c.Set("currentUser", controllerUser(1, "assign_roles", "edit_user", "delete_user"))
+	})
 	r.GET("/users/:id", uc.Get)
 	r.PUT("/users/:id", uc.Update)
 	r.PUT("/users/:id/roles", uc.SetRoles)

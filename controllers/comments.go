@@ -5,7 +5,10 @@ import (
 	"blog-backend/models"
 	"blog-backend/services"
 	"blog-backend/utils"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,23 +31,42 @@ type visibilityRequest struct {
 	Visible bool `json:"visible"`
 }
 
+type commentUserResponse struct {
+	ID          uint   `json:"id"`
+	Username    string `json:"username"`
+	EmailSHA256 string `json:"emailSha256,omitempty"`
+}
+
 type commentResponse struct {
-	ID        uint         `json:"id"`
-	PostID    uint         `json:"postId"`
-	UserID    uint         `json:"userId"`
-	Body      string       `json:"body"`
-	Visible   bool         `json:"visible"`
-	User      *models.User `json:"user,omitempty"`
-	UserAgent string       `json:"userAgent,omitempty"`
-	Country   string       `json:"country,omitempty"`
-	CreatedAt time.Time    `json:"createdAt"`
-	UpdatedAt time.Time    `json:"updatedAt"`
+	ID        uint                 `json:"id"`
+	PostID    uint                 `json:"postId"`
+	UserID    uint                 `json:"userId"`
+	Body      string               `json:"body"`
+	Visible   bool                 `json:"visible"`
+	User      *commentUserResponse `json:"user,omitempty"`
+	UserAgent string               `json:"userAgent,omitempty"`
+	Country   string               `json:"country,omitempty"`
+	CreatedAt time.Time            `json:"createdAt"`
+	UpdatedAt time.Time            `json:"updatedAt"`
+}
+
+func emailSHA256(email string) string {
+	normalized := strings.TrimSpace(strings.ToLower(email))
+	if normalized == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(normalized))
+	return hex.EncodeToString(sum[:])
 }
 
 func toCommentResponse(c models.Comment) commentResponse {
-	var user *models.User
+	var user *commentUserResponse
 	if c.User.ID != 0 {
-		user = &c.User
+		user = &commentUserResponse{
+			ID:          c.User.ID,
+			Username:    c.User.Username,
+			EmailSHA256: emailSHA256(c.User.Email),
+		}
 	}
 	return commentResponse{
 		ID:        c.ID,

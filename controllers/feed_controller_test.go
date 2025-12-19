@@ -19,10 +19,16 @@ type postRepoForFeedStub struct {
 	listByStatus func(status string, offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error)
 }
 
-func (s postRepoForFeedStub) Create(post *models.Post) error                                                 { return nil }
-func (s postRepoForFeedStub) GetByID(id uint) (*models.Post, error)                                          { return nil, gorm.ErrRecordNotFound }
-func (s postRepoForFeedStub) GetByIDAndStatus(id uint, status string) (*models.Post, error)                   { return nil, gorm.ErrRecordNotFound }
-func (s postRepoForFeedStub) List(offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error)  { return nil, 0, nil }
+func (s postRepoForFeedStub) Create(post *models.Post) error { return nil }
+func (s postRepoForFeedStub) GetByID(id uint) (*models.Post, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+func (s postRepoForFeedStub) GetByIDAndStatus(id uint, status string) (*models.Post, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+func (s postRepoForFeedStub) List(offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) {
+	return nil, 0, nil
+}
 func (s postRepoForFeedStub) ListByStatus(status string, offset, limit int, sortBy string, desc bool) ([]models.Post, int64, error) {
 	if s.listByStatus != nil {
 		return s.listByStatus(status, offset, limit, sortBy, desc)
@@ -34,7 +40,7 @@ func (s postRepoForFeedStub) Delete(id uint) error           { return nil }
 
 type settingRepoForFeedStub struct {
 	getByKey func(key string) (*models.Setting, error)
-	upsert  func(key, value, desc string) (*models.Setting, error)
+	upsert   func(key, value, desc string) (*models.Setting, error)
 }
 
 func (s settingRepoForFeedStub) List() ([]models.Setting, error) { return nil, nil }

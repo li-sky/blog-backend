@@ -109,7 +109,7 @@ func TestUserService_CreateAdminUser_InitialAndNonInitial(t *testing.T) {
 	// Initial: admin exists
 	svcInit := NewUserService(userRepoStub{
 		hasUserWithRole: func(roleName string) (bool, error) { return true, nil },
-		create:         func(user *models.User) error { return nil },
+		create:          func(user *models.User) error { return nil },
 	}, roleRepoStub{})
 
 	err := svcInit.CreateAdminUser(nil, &models.User{Username: "a", Email: "a@e.com", Password: "veryverysecure"}, true)

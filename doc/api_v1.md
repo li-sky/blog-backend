@@ -345,12 +345,19 @@
       "userId": 2,
       "body": "评论内容",
       "visible": true,
+      "user": {
+        "id": 2,
+        "username": "alice",
+        "emailSha256": "<sha256-hex>"
+      },
       "createdAt": "2025-01-01T00:00:00Z"
     }
   ],
   "total": 1
 }
 ```
+
+- 说明：评论返回的 `user` 不包含明文 `email`；如需做匿名识别，可使用 `emailSha256`（对 email 进行 `trim + lower` 规范化后计算 SHA-256，再以 hex 输出）。
 
 ### 5.2 发表评论
 - 方法：`POST`
@@ -362,7 +369,7 @@
   "body": "评论内容"
 }
 ```
-- 响应体：创建后的评论对象。
+- 响应体：创建后的评论对象（不会返回 `user.email`；如包含 `user`，仅提供 `emailSha256`）。
 
 ### 5.3 删除评论
 - 方法：`DELETE`

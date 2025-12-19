@@ -189,6 +189,7 @@ Authorization: Bearer {{token}}
 ######################################################################
 
 ### 5.1 获取文章评论列表（示例 postID=1，无需登录）
+# 说明：comments 接口返回的 user 不包含 email；仅提供 user.emailSha256（对 email 做 trim + lower 后的 SHA-256 hex）。
 GET {{host}}/api/v1/posts/1/comments?limit=20&offset=0
 
 ### 5.2 发表评论（示例 postID=1，需要登录）

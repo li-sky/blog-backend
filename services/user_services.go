@@ -28,6 +28,9 @@ var adminPermissionSeeds = []permissionSeed{
 	{"create_admin_user", "Create additional admin users"},
 	{"moderate_comments", "Moderate or hide comments"},
 	{"manage_settings", "Manage site-wide settings"},
+	{"upload_image", "Upload images to the image hosting service"},
+	{"edit_any_image", "Edit any user's images"},
+	{"delete_any_image", "Delete any user's images"},
 }
 
 func userHasPermission(user *models.User, permissionName string) bool {

@@ -46,7 +46,7 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 	ipAddress := c.ClientIP()
 
 	// 调用服务层上传图片
-	image, err := ctrl.imageService.UploadImage(fileHeader, alt, currentUser.ID, ipAddress)
+	image, err := ctrl.imageService.UploadImage(currentUser, fileHeader, alt, ipAddress)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidImageFormat) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image format"})
@@ -114,16 +114,24 @@ func (ctrl *ImageController) UpdateImage(c *gin.Context) {
 	}
 
 	// 绑定请求体
+	// 获取当前登录用户
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	currentUser := user.(*models.User)
+
 	var req struct {
 		Alt string `json:"alt"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	// 调用服务层
-	image, err := ctrl.imageService.UpdateImage(uint(id), req.Alt)
+	// 调用服务层更新图片
+	image, err := ctrl.imageService.UpdateImage(currentUser, uint(id), req.Alt)
 	if err != nil {
 		if errors.Is(err, services.ErrImageNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
@@ -145,8 +153,16 @@ func (ctrl *ImageController) DeleteImage(c *gin.Context) {
 		return
 	}
 
+	// 获取当前登录用户
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	currentUser := user.(*models.User)
+
 	// 调用服务层
-	err = ctrl.imageService.DeleteImage(uint(id))
+	err = ctrl.imageService.DeleteImage(currentUser, uint(id))
 	if err != nil {
 		if errors.Is(err, services.ErrImageNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})

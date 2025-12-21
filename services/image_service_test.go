@@ -16,6 +16,28 @@ import (
 	"gorm.io/gorm"
 )
 
+// 创建测试用户（带权限）
+func createTestUserWithPermission(id uint, permissionName string) *models.User {
+	return &models.User{
+		Model: gorm.Model{ID: id},
+		Roles: []models.Role{
+			{
+				Permissions: []models.Permission{
+					{Name: permissionName},
+				},
+			},
+		},
+	}
+}
+
+// 创建没有权限的测试用户
+func createTestUserWithoutPermission(id uint) *models.User {
+	return &models.User{
+		Model: gorm.Model{ID: id},
+		Roles: []models.Role{},
+	}
+}
+
 // Stub ImageRepository
 type stubImageRepo struct {
 	createFunc        func(*models.Image) error
@@ -107,9 +129,10 @@ func TestImageService_UploadImage(t *testing.T) {
 		storageBackend := &stubStorageBackend{}
 		service := NewImageService(imageRepo, storageBackend)
 
+		user := createTestUserWithPermission(1, "upload_image")
 		fileHeader := createTestFileHeader(t, "test.jpg", "image/jpeg", []byte("test data"))
 
-		result, err := service.UploadImage(fileHeader, "Test alt", 1, "127.0.0.1")
+		result, err := service.UploadImage(user, fileHeader, "Test alt", "127.0.0.1")
 
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -124,11 +147,12 @@ func TestImageService_UploadImage(t *testing.T) {
 	t.Run("rejects file that is too large", func(t *testing.T) {
 		service := NewImageService(&stubImageRepo{}, &stubStorageBackend{})
 
+		user := createTestUserWithPermission(1, "upload_image")
 		// 创建一个大于 10MB 的文件
 		largeData := make([]byte, 11*1024*1024)
 		fileHeader := createTestFileHeader(t, "large.jpg", "image/jpeg", largeData)
 
-		result, err := service.UploadImage(fileHeader, "", 1, "127.0.0.1")
+		result, err := service.UploadImage(user, fileHeader, "", "127.0.0.1")
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrImageTooLarge, err)
@@ -138,9 +162,10 @@ func TestImageService_UploadImage(t *testing.T) {
 	t.Run("rejects invalid image format by extension", func(t *testing.T) {
 		service := NewImageService(&stubImageRepo{}, &stubStorageBackend{})
 
+		user := createTestUserWithPermission(1, "upload_image")
 		fileHeader := createTestFileHeader(t, "test.txt", "text/plain", []byte("test"))
 
-		result, err := service.UploadImage(fileHeader, "", 1, "127.0.0.1")
+		result, err := service.UploadImage(user, fileHeader, "", "127.0.0.1")
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrInvalidImageFormat, err)
@@ -150,9 +175,10 @@ func TestImageService_UploadImage(t *testing.T) {
 	t.Run("rejects invalid MIME type", func(t *testing.T) {
 		service := NewImageService(&stubImageRepo{}, &stubStorageBackend{})
 
+		user := createTestUserWithPermission(1, "upload_image")
 		fileHeader := createTestFileHeader(t, "test.jpg", "application/pdf", []byte("test"))
 
-		result, err := service.UploadImage(fileHeader, "", 1, "127.0.0.1")
+		result, err := service.UploadImage(user, fileHeader, "", "127.0.0.1")
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrInvalidImageFormat, err)
@@ -174,9 +200,10 @@ func TestImageService_UploadImage(t *testing.T) {
 		}
 		service := NewImageService(imageRepo, storageBackend)
 
+		user := createTestUserWithPermission(1, "upload_image")
 		fileHeader := createTestFileHeader(t, "test.jpg", "image/jpeg", []byte("test"))
 
-		result, err := service.UploadImage(fileHeader, "", 1, "127.0.0.1")
+		result, err := service.UploadImage(user, fileHeader, "", "127.0.0.1")
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -250,6 +277,7 @@ func TestImageService_UpdateImage(t *testing.T) {
 		existingImage := &models.Image{
 			Filename: "test.jpg",
 			Alt:      "Old alt",
+			UserID:   1,
 		}
 		existingImage.ID = 1
 
@@ -266,7 +294,9 @@ func TestImageService_UpdateImage(t *testing.T) {
 		}
 		service := NewImageService(imageRepo, &stubStorageBackend{})
 
-		result, err := service.UpdateImage(1, "New alt")
+		// 图片拥有者可以更新
+		user := createTestUserWithoutPermission(1)
+		result, err := service.UpdateImage(user, 1, "New alt")
 
 		require.NoError(t, err)
 		assert.Equal(t, "New alt", result.Alt)
@@ -280,11 +310,60 @@ func TestImageService_UpdateImage(t *testing.T) {
 		}
 		service := NewImageService(imageRepo, &stubStorageBackend{})
 
-		result, err := service.UpdateImage(999, "New alt")
+		user := createTestUserWithoutPermission(1)
+		result, err := service.UpdateImage(user, 999, "New alt")
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrImageNotFound, err)
 		assert.Nil(t, result)
+	})
+
+	t.Run("rejects update by non-owner without permission", func(t *testing.T) {
+		existingImage := &models.Image{
+			Filename: "test.jpg",
+			UserID:   2, // 不同的拥有者
+		}
+		existingImage.ID = 1
+
+		imageRepo := &stubImageRepo{
+			getByIDFunc: func(id uint) (*models.Image, error) {
+				return existingImage, nil
+			},
+		}
+		service := NewImageService(imageRepo, &stubStorageBackend{})
+
+		// 用户 1 试图更新用户 2 的图片
+		user := createTestUserWithoutPermission(1)
+		result, err := service.UpdateImage(user, 1, "New alt")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
+		assert.Nil(t, result)
+	})
+
+	t.Run("allows update with edit_any_image permission", func(t *testing.T) {
+		existingImage := &models.Image{
+			Filename: "test.jpg",
+			UserID:   2,
+		}
+		existingImage.ID = 1
+
+		imageRepo := &stubImageRepo{
+			getByIDFunc: func(id uint) (*models.Image, error) {
+				return existingImage, nil
+			},
+			updateFunc: func(img *models.Image) error {
+				return nil
+			},
+		}
+		service := NewImageService(imageRepo, &stubStorageBackend{})
+
+		// 管理员可以编辑任何图片
+		admin := createTestUserWithPermission(1, "edit_any_image")
+		result, err := service.UpdateImage(admin, 1, "New alt")
+
+		require.NoError(t, err)
+		assert.Equal(t, "New alt", result.Alt)
 	})
 }
 
@@ -292,6 +371,7 @@ func TestImageService_DeleteImage(t *testing.T) {
 	t.Run("deletes image and file", func(t *testing.T) {
 		existingImage := &models.Image{
 			Filename: "test.jpg",
+			UserID:   1,
 		}
 		existingImage.ID = 1
 
@@ -319,7 +399,9 @@ func TestImageService_DeleteImage(t *testing.T) {
 		}
 		service := NewImageService(imageRepo, storageBackend)
 
-		err := service.DeleteImage(1)
+		// 图片拥有者可以删除
+		user := createTestUserWithoutPermission(1)
+		err := service.DeleteImage(user, 1)
 
 		require.NoError(t, err)
 		assert.True(t, deleteFileCalled)
@@ -334,10 +416,60 @@ func TestImageService_DeleteImage(t *testing.T) {
 		}
 		service := NewImageService(imageRepo, &stubStorageBackend{})
 
-		err := service.DeleteImage(999)
+		user := createTestUserWithoutPermission(1)
+		err := service.DeleteImage(user, 999)
 
 		assert.Error(t, err)
 		assert.Equal(t, ErrImageNotFound, err)
+	})
+
+	t.Run("rejects delete by non-owner without permission", func(t *testing.T) {
+		existingImage := &models.Image{
+			Filename: "test.jpg",
+			UserID:   2,
+		}
+		existingImage.ID = 1
+
+		imageRepo := &stubImageRepo{
+			getByIDFunc: func(id uint) (*models.Image, error) {
+				return existingImage, nil
+			},
+		}
+		service := NewImageService(imageRepo, &stubStorageBackend{})
+
+		user := createTestUserWithoutPermission(1)
+		err := service.DeleteImage(user, 1)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
+	})
+
+	t.Run("allows delete with delete_any_image permission", func(t *testing.T) {
+		existingImage := &models.Image{
+			Filename: "test.jpg",
+			UserID:   2,
+		}
+		existingImage.ID = 1
+
+		imageRepo := &stubImageRepo{
+			getByIDFunc: func(id uint) (*models.Image, error) {
+				return existingImage, nil
+			},
+			deleteFunc: func(id uint) error {
+				return nil
+			},
+		}
+		storageBackend := &stubStorageBackend{
+			deleteFunc: func(filename string) error {
+				return nil
+			},
+		}
+		service := NewImageService(imageRepo, storageBackend)
+
+		admin := createTestUserWithPermission(1, "delete_any_image")
+		err := service.DeleteImage(admin, 1)
+
+		require.NoError(t, err)
 	})
 }
 

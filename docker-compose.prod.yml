@@ -27,8 +27,13 @@ services:
       DATABASE_URL: postgres://${DB_USER:-blog}:${DB_PASSWORD}@db:5432/${DB_NAME:-blog}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET}
       GIN_MODE: release
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-filesystem}
+      STORAGE_FS_BASE_PATH: ${STORAGE_FS_BASE_PATH:-/uploads}
+      STORAGE_FS_BASE_URL: ${STORAGE_FS_BASE_URL}
     ports:
       - "8080:8080"
+    volumes:
+      - uploads-data:/uploads
     networks:
       - blog-network
     restart: unless-stopped
@@ -39,8 +44,33 @@ services:
       retries: 3
       start_period: 40s
 
+  # 图片动态转换服务（生产环境推荐）
+  imgproxy:
+    image: darthsim/imgproxy:latest
+    environment:
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /uploads
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_TTL: 2592000  # 30天缓存
+      IMGPROXY_MAX_SRC_RESOLUTION: 50  # 最大 50MP
+      IMGPROXY_JPEG_PROGRESSIVE: "true"
+      IMGPROXY_PNG_INTERLACED: "true"
+      IMGPROXY_QUALITY: 85
+      IMGPROXY_GZIP_COMPRESSION: 5
+    volumes:
+      - uploads-data:/uploads:ro
+    networks:
+      - blog-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   db-data:
+  uploads-data:
 
 networks:
   blog-network:

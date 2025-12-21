@@ -16,6 +16,22 @@ import (
 	"gorm.io/gorm"
 )
 
+// Helper function to create a user with specific permissions
+func createTestUserWithPermissions(id uint, permissions ...string) *models.User {
+	perms := make([]models.Permission, len(permissions))
+	for i, permName := range permissions {
+		perms[i] = models.Permission{Name: permName}
+	}
+	return &models.User{
+		Model: gorm.Model{ID: id},
+		Roles: []models.Role{
+			{
+				Permissions: perms,
+			},
+		},
+	}
+}
+
 // stubImageRepoForCtrl implements ImageRepository interface for testing
 type stubImageRepoForCtrl struct {
 	createFunc        func(*models.Image) error
@@ -113,7 +129,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", &models.User{Model: gorm.Model{ID: 1}})
+			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -176,7 +192,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", &models.User{Model: gorm.Model{ID: 1}})
+			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -201,7 +217,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", &models.User{Model: gorm.Model{ID: 1}})
+			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -237,7 +253,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", &models.User{Model: gorm.Model{ID: 1}})
+			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -379,6 +395,7 @@ func TestImageController_UpdateImage(t *testing.T) {
 		updatedImage := &models.Image{
 			Filename: "test.jpg",
 			Alt:      "Updated alt",
+			UserID:   1, // 拥有者
 		}
 		updatedImage.ID = 1
 
@@ -398,6 +415,10 @@ func TestImageController_UpdateImage(t *testing.T) {
 		controller := NewImageController(imageSvc)
 
 		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set("user", createTestUserWithPermissions(1)) // 图片拥有者，无需额外权限
+			c.Next()
+		})
 		router.PUT("/images/:id", controller.UpdateImage)
 
 		body, _ := json.Marshal(map[string]string{"alt": "Updated alt"})
@@ -424,6 +445,10 @@ func TestImageController_UpdateImage(t *testing.T) {
 		controller := NewImageController(imageSvc)
 
 		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set("user", createTestUserWithPermissions(1))
+			c.Next()
+		})
 		router.PUT("/images/:id", controller.UpdateImage)
 
 		body, _ := json.Marshal(map[string]string{"alt": "Updated alt"})
@@ -443,6 +468,10 @@ func TestImageController_UpdateImage(t *testing.T) {
 		controller := NewImageController(imageSvc)
 
 		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set("user", createTestUserWithPermissions(1))
+			c.Next()
+		})
 		router.PUT("/images/:id", controller.UpdateImage)
 
 		req := httptest.NewRequest(http.MethodPut, "/images/1", bytes.NewBuffer([]byte("invalid json")))
@@ -462,7 +491,7 @@ func TestImageController_DeleteImage(t *testing.T) {
 		imageRepo := &stubImageRepoForCtrl{
 			getByIDFunc: func(id uint) (*models.Image, error) {
 				if id == 1 {
-					img := &models.Image{Filename: "test.jpg"}
+					img := &models.Image{Filename: "test.jpg", UserID: 1}
 					img.ID = 1
 					return img, nil
 				}
@@ -477,6 +506,10 @@ func TestImageController_DeleteImage(t *testing.T) {
 		controller := NewImageController(imageSvc)
 
 		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set("user", createTestUserWithPermissions(1)) // 图片拥有者
+			c.Next()
+		})
 		router.DELETE("/images/:id", controller.DeleteImage)
 
 		req := httptest.NewRequest(http.MethodDelete, "/images/1", nil)
@@ -498,6 +531,10 @@ func TestImageController_DeleteImage(t *testing.T) {
 		controller := NewImageController(imageSvc)
 
 		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set("user", createTestUserWithPermissions(1))
+			c.Next()
+		})
 		router.DELETE("/images/:id", controller.DeleteImage)
 
 		req := httptest.NewRequest(http.MethodDelete, "/images/999", nil)

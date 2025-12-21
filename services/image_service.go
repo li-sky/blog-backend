@@ -43,7 +43,12 @@ func NewImageService(imageRepo ImageRepository, storageBackend storage.StorageBa
 }
 
 // UploadImage 上传图片
-func (s *ImageService) UploadImage(fileHeader *multipart.FileHeader, alt string, userID uint, ipAddress string) (*models.Image, error) {
+func (s *ImageService) UploadImage(user *models.User, fileHeader *multipart.FileHeader, alt string, ipAddress string) (*models.Image, error) {
+	// 权限检查：需要 upload_image 权限
+	if !userHasPermission(user, "upload_image") {
+		return nil, errors.New("permission denied: upload_image required")
+	}
+
 	// 验证文件大小
 	if fileHeader.Size > MaxImageSize {
 		return nil, ErrImageTooLarge
@@ -90,7 +95,7 @@ func (s *ImageService) UploadImage(fileHeader *multipart.FileHeader, alt string,
 		Width:          width,
 		Height:         height,
 		URL:            url,
-		UserID:         userID,
+		UserID:         user.ID,
 		StorageBackend: "filesystem", // TODO: 从配置读取
 		StoragePath:    filename,
 		IPAddress:      ipAddress,
@@ -123,13 +128,18 @@ func (s *ImageService) ListImages(offset, limit int) ([]models.Image, int64, err
 }
 
 // UpdateImage 更新图片信息
-func (s *ImageService) UpdateImage(id uint, alt string) (*models.Image, error) {
+func (s *ImageService) UpdateImage(user *models.User, id uint, alt string) (*models.Image, error) {
 	image, err := s.imageRepo.GetByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrImageNotFound
 		}
 		return nil, err
+	}
+
+	// 权限检查：必须是图片所有者或拥有 edit_any_image 权限
+	if image.UserID != user.ID && !userHasPermission(user, "edit_any_image") {
+		return nil, errors.New("permission denied: can only edit your own images")
 	}
 
 	image.Alt = alt
@@ -142,13 +152,19 @@ func (s *ImageService) UpdateImage(id uint, alt string) (*models.Image, error) {
 }
 
 // DeleteImage 删除图片
-func (s *ImageService) DeleteImage(id uint) error {
+func (s *ImageService) DeleteImage(user *models.User, id uint) error {
+	// 获取图片信息以验证所有权
 	image, err := s.imageRepo.GetByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrImageNotFound
 		}
 		return err
+	}
+
+	// 权限检查：必须是图片所有者或拥有 delete_any_image 权限
+	if image.UserID != user.ID && !userHasPermission(user, "delete_any_image") {
+		return errors.New("permission denied: can only delete your own images")
 	}
 
 	// 先删除文件

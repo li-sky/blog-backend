@@ -54,7 +54,59 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-### 3. 验证部署
+### 3. Docker Compose 服务说明
+
+**生产环境服务架构**：
+
+```
+┌─────────────┐     ┌─────────────┐
+│   Nginx     │────▶│  imgproxy   │ (图片转换)
+│  (反向代理) │     └─────────────┘
+└──────┬──────┘              │
+       │                     │
+       │                ┌────▼─────┐
+       │                │ uploads  │ (共享卷)
+       │                └────▲─────┘
+       │                     │
+       ▼                     │
+┌─────────────┐     ┌────────┴─────┐
+│     API     │────▶│  PostgreSQL  │
+│  (Go应用)   │     │   (数据库)   │
+└─────────────┘     └──────────────┘
+```
+
+**服务说明**：
+
+1. **api**: Blog 后端应用
+   - 端口: 8080（内部）
+   - 负责: API 逻辑、图片上传（保存原图）
+   - 数据卷: `uploads-data`（存储上传的图片）
+
+2. **imgproxy**: 图片动态转换服务
+   - 端口: 8080（内部）
+   - 负责: 实时转换图片尺寸和格式
+   - 数据卷: `uploads-data`（只读）
+
+3. **db**: PostgreSQL 数据库
+   - 端口: 5432（内部）
+   - 数据卷: `db-data`（持久化数据）
+
+4. **nginx**（可选，VPS 上需要独立配置）:
+   - 端口: 80/443
+   - 负责: 反向代理、SSL 终止、缓存
+
+**环境变量配置**：
+
+在 `.env` 文件中添加：
+```bash
+# 图片访问 URL（使用图片域名）
+STORAGE_FS_BASE_URL=https://image.yourdomain.com
+
+# 图片存储路径（容器内路径）
+STORAGE_FS_BASE_PATH=/uploads
+```
+
+### 4. 验证部署
 
 ```bash
 # 查看服务状态
@@ -65,6 +117,9 @@ docker-compose -f docker-compose.prod.yml logs -f api
 
 # 测试 API
 curl http://localhost:8080/health
+
+# 测试 imgproxy（如果端口暴露）
+# curl http://localhost:8081/health
 ```
 
 ---

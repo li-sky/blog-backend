@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	"blog-backend/models"
+	"blog-backend/middlewares"
 	"blog-backend/services"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -24,13 +25,11 @@ func NewImageController(imageService *services.ImageService) *ImageController {
 // UploadImage 上传图片
 func (ctrl *ImageController) UploadImage(c *gin.Context) {
 	// 获取当前登录用户
-	user, exists := c.Get("user")
-	if !exists {
+	currentUser, ok := middlewares.CurrentUser(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-
-	currentUser := user.(*models.User)
 
 	// 获取上传的文件
 	fileHeader, err := c.FormFile("file")
@@ -48,6 +47,11 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 	// 调用服务层上传图片
 	image, err := ctrl.imageService.UploadImage(currentUser, fileHeader, alt, ipAddress)
 	if err != nil {
+		// 检查权限错误
+		if strings.Contains(err.Error(), "permission denied") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, services.ErrInvalidImageFormat) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image format"})
 			return
@@ -56,7 +60,8 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "image size exceeds 10MB limit"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload image"})
+		// 记录详细错误用于调试
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload image", "details": err.Error()})
 		return
 	}
 
@@ -113,14 +118,12 @@ func (ctrl *ImageController) UpdateImage(c *gin.Context) {
 		return
 	}
 
-	// 绑定请求体
 	// 获取当前登录用户
-	user, exists := c.Get("user")
-	if !exists {
+	currentUser, ok := middlewares.CurrentUser(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	currentUser := user.(*models.User)
 
 	var req struct {
 		Alt string `json:"alt"`
@@ -154,12 +157,11 @@ func (ctrl *ImageController) DeleteImage(c *gin.Context) {
 	}
 
 	// 获取当前登录用户
-	user, exists := c.Get("user")
-	if !exists {
+	currentUser, ok := middlewares.CurrentUser(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	currentUser := user.(*models.User)
 
 	// 调用服务层
 	err = ctrl.imageService.DeleteImage(currentUser, uint(id))

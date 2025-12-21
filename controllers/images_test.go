@@ -129,7 +129,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
+			c.Set("currentUser", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -192,7 +192,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
+			c.Set("currentUser", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -217,7 +217,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
+			c.Set("currentUser", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -253,7 +253,7 @@ func TestImageController_UploadImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1, "upload_image"))
+			c.Set("currentUser", createTestUserWithPermissions(1, "upload_image"))
 			c.Next()
 		})
 		router.POST("/upload", controller.UploadImage)
@@ -416,7 +416,7 @@ func TestImageController_UpdateImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1)) // 图片拥有者，无需额外权限
+			c.Set("currentUser", createTestUserWithPermissions(1)) // 图片拥有者，无需额外权限
 			c.Next()
 		})
 		router.PUT("/images/:id", controller.UpdateImage)
@@ -446,7 +446,7 @@ func TestImageController_UpdateImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1))
+			c.Set("currentUser", createTestUserWithPermissions(1))
 			c.Next()
 		})
 		router.PUT("/images/:id", controller.UpdateImage)
@@ -469,7 +469,7 @@ func TestImageController_UpdateImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1))
+			c.Set("currentUser", createTestUserWithPermissions(1))
 			c.Next()
 		})
 		router.PUT("/images/:id", controller.UpdateImage)
@@ -507,7 +507,7 @@ func TestImageController_DeleteImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1)) // 图片拥有者
+			c.Set("currentUser", createTestUserWithPermissions(1)) // 图片拥有者
 			c.Next()
 		})
 		router.DELETE("/images/:id", controller.DeleteImage)
@@ -532,7 +532,7 @@ func TestImageController_DeleteImage(t *testing.T) {
 
 		router := gin.New()
 		router.Use(func(c *gin.Context) {
-			c.Set("user", createTestUserWithPermissions(1))
+			c.Set("currentUser", createTestUserWithPermissions(1))
 			c.Next()
 		})
 		router.DELETE("/images/:id", controller.DeleteImage)

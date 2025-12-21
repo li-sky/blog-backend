@@ -37,6 +37,12 @@ func main() {
 	imageRepo := repositories.NewImageRepo(db)
 
 	userService := services.NewUserService(userRepo, roleRepo)
+
+	// 启动时同步 Admin 权限，确保代码中定义的权限已写入数据库
+	if err := userService.SyncAdminPermissions(); err != nil {
+		log.Printf("warning: failed to sync admin permissions: %v", err)
+	}
+
 	roleService := services.NewRoleService(roleRepo)
 	postService := services.NewPostService(postRepo)
 	commentService := services.NewCommentService(commentRepo, postRepo)

@@ -192,6 +192,12 @@ func (s *UserService) GetByID(id uint) (*models.User, error) {
 	return s.repo.GetByID(id)
 }
 
+// SyncAdminPermissions ensures the admin role and its permissions exist and are up to date.
+func (s *UserService) SyncAdminPermissions() error {
+	_, err := s.ensureAdminRole()
+	return err
+}
+
 func (s *UserService) ensureAdminRole() (*models.Role, error) {
 	role, err := s.roleRepo.EnsureRole(adminRoleName)
 	if err != nil {

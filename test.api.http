@@ -234,3 +234,69 @@ Authorization: Bearer {{token}}
   "value": "我的博客",
   "description": "站点标题"
 }
+
+######################################################################
+# 7. Images 图床模块
+######################################################################
+
+### 7.1 上传图片（需要登录）
+# 注意：此请求需要实际的图片文件，需要在 VS Code REST Client 中手动测试
+POST {{host}}/api/v1/images/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test_files/test.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="alt"
+
+测试图片
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 7.2 获取图片列表（需要登录）
+GET {{host}}/api/v1/images?limit=20&offset=0
+Authorization: Bearer {{token}}
+
+### 7.3 获取图片详情（示例 ID=1，需要登录）
+GET {{host}}/api/v1/images/1
+Authorization: Bearer {{token}}
+
+### 7.4 更新图片信息（示例 ID=1，需要登录）
+PUT {{host}}/api/v1/images/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "alt": "更新后的图片描述"
+}
+
+### 7.5 删除图片（示例 ID=1，需要登录）
+DELETE {{host}}/api/v1/images/1
+Authorization: Bearer {{token}}
+
+### 7.6 图片 URL 使用说明（需配置 Nginx/imgproxy）
+# 假设上传后返回的 URL 为: https://image.yourdomain.com/abc123.jpg
+
+# 原图
+# https://image.yourdomain.com/abc123.jpg
+
+# 640px 宽度（移动端）
+# https://image.yourdomain.com/abc123.jpg?w=640
+
+# WebP 格式
+# https://image.yourdomain.com/abc123.jpg?format=webp
+
+# 组合：640px + WebP（最佳移动端体验）
+# https://image.yourdomain.com/abc123.jpg?w=640&format=webp
+
+# 响应式图片 HTML 示例：
+# <picture>
+#   <source srcset="https://image.yourdomain.com/abc123.jpg?w=640&format=webp" 
+#           type="image/webp" media="(max-width: 768px)">
+#   <source srcset="https://image.yourdomain.com/abc123.jpg?w=1280&format=webp" 
+#           type="image/webp" media="(min-width: 769px)">
+#   <img src="https://image.yourdomain.com/abc123.jpg?w=1280" alt="图片">
+# </picture>

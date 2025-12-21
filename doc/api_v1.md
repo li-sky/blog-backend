@@ -428,16 +428,156 @@
 
 ---
 
-## 7. RSS/Atom Feed 订阅
+## 7. 图床模块 Images
 
-### 7.1 Atom Feed
+### 7.1 上传图片
+- 方法：`POST`
+- 路径：`/api/v1/images/upload`
+- 是否登录：是
+- 请求格式：`multipart/form-data`
+- 表单字段：
+  - `file`：图片文件（必需，支持 jpg, jpeg, png, gif, webp 格式）
+  - `alt`：图片描述文本（可选）
+- 响应体：
+```json
+{
+  "id": 1,
+  "filename": "abc123.jpg",
+  "originalName": "photo.jpg",
+  "alt": "我的照片",
+  "mimeType": "image/jpeg",
+  "size": 102400,
+  "width": 1920,
+  "height": 1080,
+  "url": "https://image.yourdomain.com/abc123.jpg",
+  "userId": 1,
+  "storageBackend": "filesystem",
+  "storagePath": "uploads/abc123.jpg",
+  "createdAt": "2025-01-01T00:00:00Z"
+}
+```
+
+### 7.2 获取图片列表
+- 方法：`GET`
+- 路径：`/api/v1/images`
+- 是否登录：是
+- 查询参数：
+  - `limit`（可选，默认 20）
+  - `offset`（可选，默认 0）
+- 响应体：
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "filename": "abc123.jpg",
+      "originalName": "photo.jpg",
+      "alt": "我的照片",
+      "mimeType": "image/jpeg",
+      "size": 102400,
+      "width": 1920,
+      "height": 1080,
+      "url": "https://image.yourdomain.com/abc123.jpg",
+      "userId": 1,
+      "storageBackend": "filesystem",
+      "createdAt": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### 7.3 获取图片详情
+- 方法：`GET`
+- 路径：`/api/v1/images/:id`
+- 是否登录：是
+- 响应体：单个图片对象，同上结构。
+
+### 7.4 删除图片
+- 方法：`DELETE`
+- 路径：`/api/v1/images/:id`
+- 是否登录：是
+- 说明：同时删除数据库记录和存储后端的文件。
+- 响应：`204 No Content`。
+
+### 7.5 更新图片信息
+- 方法：`PUT`
+- 路径：`/api/v1/images/:id`
+- 是否登录：是
+- 请求体：
+```json
+{
+  "alt": "更新后的图片描述"
+}
+```
+- 响应体：更新后的图片对象。
+
+**存储后端配置说明**：
+- 当前支持的存储后端：`filesystem`（文件系统）
+- 使用环境变量 `STORAGE_BACKEND` 配置存储类型（默认 `filesystem`）
+- 文件系统存储配置：
+  - `STORAGE_FS_BASE_PATH`：文件存储基础路径（默认 `./uploads`）
+  - `STORAGE_FS_BASE_URL`：文件访问完整 URL 前缀（如 `https://image.yourdomain.com` 或 `https://cdn.example.com/images`）
+- 上传限制：
+  - 单个文件最大 10MB
+  - 支持的图片格式：jpg, jpeg, png, gif, webp
+  - 文件名自动生成（使用 UUID + 原扩展名），避免冲突
+- URL 生成规则：返回的 `url` 字段 = `STORAGE_FS_BASE_URL` + `/` + `filename`
+- 迁移友好：修改 `STORAGE_FS_BASE_URL` 即可切换到 CDN 或对象存储域名，无需修改代码
+
+**图片动态转换（推荐用于生产环境）**：
+
+后端只存储原图，通过 Nginx 或 imgproxy 实现动态转换和缓存，提供不同分辨率和格式的图片。
+
+**URL 参数用法**（需要配置 Nginx/imgproxy，见部署文档）：
+
+- **宽度调整**：`https://image.yourdomain.com/abc123.jpg?w=640`
+- **格式转换**：`https://image.yourdomain.com/abc123.jpg?format=webp`
+- **组合使用**：`https://image.yourdomain.com/abc123.jpg?w=1280&format=webp`
+- **响应式图片示例**：
+```html
+<picture>
+  <source 
+    srcset="https://image.yourdomain.com/abc123.jpg?w=640&format=webp" 
+    type="image/webp" 
+    media="(max-width: 768px)">
+  <source 
+    srcset="https://image.yourdomain.com/abc123.jpg?w=1280&format=webp" 
+    type="image/webp" 
+    media="(min-width: 769px)">
+  <img 
+    src="https://image.yourdomain.com/abc123.jpg?w=1280" 
+    alt="responsive image" 
+    loading="lazy">
+</picture>
+```
+
+**常用分辨率建议**：
+- `w=320` - 小屏幕移动设备（缩略图）
+- `w=640` - 移动设备
+- `w=1280` - 平板/桌面
+- `w=1920` - 高清桌面
+- 原图 - 不带参数
+
+**优势**：
+- ✅ 后端无需处理图片转换，逻辑简单
+- ✅ 按需生成，节省存储空间
+- ✅ Nginx/imgproxy 自动缓存，性能优异
+- ✅ 前端灵活控制图片尺寸和格式
+- ✅ 支持 WebP 自动协商（客户端支持时自动返回 WebP）
+
+---
+
+## 8. RSS/Atom Feed 订阅
+
+### 8.1 Atom Feed
 - 方法：`GET`
 - 路径：`/feed/atom`
 - 是否登录：否
 - 响应格式：`application/atom+xml`
 - 说明：返回最新 20 篇已发布文章的 Atom 1.0 格式 feed，可用于 RSS 阅读器订阅。
 
-### 7.2 RSS Feed
+### 8.2 RSS Feed
 - 方法：`GET`
 - 路径：`/feed/rss`
 - 是否登录：否
@@ -453,7 +593,7 @@
 
 ---
 
-## 8. 错误码与前端处理建议
+## 9. 错误码与前端处理建议
 
 - `400 Bad Request`：参数校验失败或业务校验失败，前端可根据 `error` 字段提示具体原因。
 - `401 Unauthorized`：未登录或 token 失效，前端应跳转登录页或重新发起登录。

@@ -3,6 +3,7 @@ package router
 import (
 	"blog-backend/models"
 	"blog-backend/services"
+	"mime/multipart"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -75,13 +76,33 @@ func (noopSettingRepo) Upsert(key, value, description string) (*models.Setting, 
 	return &models.Setting{Key: key, Value: value, Desc: description}, nil
 }
 
+type noopImageRepo struct{}
+
+func (noopImageRepo) Create(image *models.Image) error                      { return nil }
+func (noopImageRepo) GetByID(id uint) (*models.Image, error)                { return &models.Image{}, nil }
+func (noopImageRepo) List(offset, limit int) ([]models.Image, int64, error) { return nil, 0, nil }
+func (noopImageRepo) Update(image *models.Image) error                      { return nil }
+func (noopImageRepo) Delete(id uint) error                                  { return nil }
+func (noopImageRepo) GetByFilename(filename string) (*models.Image, error) {
+	return &models.Image{}, nil
+}
+
+type noopStorageBackend struct{}
+
+func (noopStorageBackend) Save(file *multipart.FileHeader) (string, string, error) {
+	return "", "", nil
+}
+func (noopStorageBackend) Delete(filename string) error                             { return nil }
+func (noopStorageBackend) GetImageDimensions(file multipart.File) (int, int, error) { return 0, 0, nil }
+
 func TestSetupRouter_BuildsEngine(t *testing.T) {
 	userSvc := services.NewUserService(noopUserRepo{}, noopRoleRepo{})
 	roleSvc := services.NewRoleService(noopRoleRepo{})
 	postSvc := services.NewPostService(noopPostRepo{})
 	commentSvc := services.NewCommentService(noopCommentRepo{}, noopPostRepo{})
 	settingSvc := services.NewSettingService(noopSettingRepo{})
+	imageSvc := services.NewImageService(noopImageRepo{}, noopStorageBackend{})
 
-	engine := SetupRouter(userSvc, roleSvc, postSvc, commentSvc, settingSvc)
+	engine := SetupRouter(userSvc, roleSvc, postSvc, commentSvc, settingSvc, imageSvc)
 	require.NotNil(t, engine)
 }

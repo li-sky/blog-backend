@@ -36,6 +36,18 @@ nano .env
 - `DB_PASSWORD`: 设置强密码
 - `JWT_SECRET`: 生成随机密钥（可用 `openssl rand -base64 64`）
 
+**图床存储配置**（可选）：
+- `STORAGE_BACKEND`: 存储后端类型，默认 `filesystem`
+- `STORAGE_FS_BASE_PATH`: 文件存储基础路径，默认 `./uploads`
+- `STORAGE_FS_BASE_URL`: 文件访问完整 URL 前缀（如 `https://image.yourdomain.com`）
+
+**注意事项**：
+1. 使用文件系统存储时，需要确保 `STORAGE_FS_BASE_PATH` 目录存在且容器有写入权限
+2. 生产环境建议挂载数据卷保存上传的文件，避免容器重启后文件丢失
+3. **推荐配置独立图片域名**（如 `image.yourdomain.com`），便于未来迁移到 CDN 或对象存储
+4. 如使用 Nginx 提供静态文件服务，需要配置对应的 server 块（见下方 Nginx 配置）
+5. 使用完整 URL 的好处：切换存储后端时只需修改环境变量，前端无需改动
+
 ```bash
 # 执行部署脚本
 chmod +x deploy.sh
@@ -144,6 +156,7 @@ server {
 
     client_max_body_size 10M;
 
+    # API 代理
     location / {
         proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
@@ -160,8 +173,260 @@ server {
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
     }
+
 }
 ```
+
+**方案A：使用独立图片域名 + Nginx 动态转换（推荐生产环境）**
+
+支持动态调整分辨率和格式转换，提供更好的移动端加载体验。
+
+**选项 1：使用 Nginx image_filter 模块**
+
+创建图片服务器配置：
+
+```bash
+sudo nano /etc/nginx/sites-available/blog-images
+```
+
+```nginx
+# 图片动态转换服务器
+proxy_cache_path /var/cache/nginx/images levels=1:2 keys_zone=images_cache:10m max_size=1g inactive=30d use_temp_path=off;
+
+server {
+    listen 80;
+    server_name image.yourdomain.com;
+
+    set $upload_root /path/to/your/uploads;  # 修改为实际的上传文件路径
+
+    # 动态图片转换 + 缓存
+    location ~ ^/(.+)$ {
+        set $filename $1;
+        set $width $arg_w;
+        set $format $arg_format;
+
+        # 缓存配置
+        proxy_cache images_cache;
+        proxy_cache_key "$uri$is_args$args";
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        add_header X-Cache-Status $upstream_cache_status;
+
+        # 处理格式转换和缩放
+        if ($width) {
+            rewrite ^ /resize last;
+        }
+        if ($format = "webp") {
+            rewrite ^ /webp last;
+        }
+
+        # 直接返回原图
+        root $upload_root;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        add_header Access-Control-Allow-Origin "*";
+        try_files /$filename =404;
+    }
+
+    # 缩放处理
+    location /resize {
+        internal;
+        alias $upload_root;
+        image_filter resize $width -;
+        image_filter_jpeg_quality 85;
+        image_filter_webp_quality 80;
+        image_filter_buffer 20M;
+        
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        add_header Access-Control-Allow-Origin "*";
+    }
+
+    # WebP 转换
+    location /webp {
+        internal;
+        alias $upload_root;
+        image_filter resize $width -;
+        image_filter_jpeg_quality 80;
+        image_filter_webp_quality 75;
+        image_filter_buffer 20M;
+        
+        # 强制输出 WebP
+        add_header Content-Type image/webp;
+        
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        add_header Access-Control-Allow-Origin "*";
+    }
+}
+```
+
+**选项 2：使用 imgproxy（更强大，推荐）**
+
+安装 imgproxy：
+
+```bash
+# 使用 Docker 运行 imgproxy
+docker run -d \
+  --name imgproxy \
+  -p 8081:8080 \
+  -e IMGPROXY_LOCAL_FILESYSTEM_ROOT=/uploads \
+  -e IMGPROXY_ENABLE_WEBP_DETECTION=true \
+  -e IMGPROXY_USE_ETAG=true \
+  -v /path/to/your/uploads:/uploads:ro \
+  darthsim/imgproxy:latest
+```
+
+Nginx 配置：
+
+```bash
+sudo nano /etc/nginx/sites-available/blog-images
+```
+
+```nginx
+# imgproxy 代理 + 缓存
+proxy_cache_path /var/cache/nginx/images levels=1:2 keys_zone=images_cache:10m max_size=2g inactive=30d use_temp_path=off;
+
+server {
+    listen 80;
+    server_name image.yourdomain.com;
+
+    location / {
+        # 将请求代理到 imgproxy
+        set $width $arg_w;
+        set $format $arg_format;
+        set $imgproxy_url "plain/local:///";
+
+        # 构建 imgproxy URL
+        if ($width) {
+            set $imgproxy_url "resize:fill:${width}:0:0/plain/local:///";
+        }
+        if ($format = "webp") {
+            set $imgproxy_url "${imgproxy_url}@webp";
+        }
+
+        proxy_pass http://localhost:8081/$imgproxy_url$uri;
+        
+        # 缓存配置
+        proxy_cache images_cache;
+        proxy_cache_key "$uri$is_args$args";
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        add_header X-Cache-Status $upstream_cache_status;
+
+        # 头部设置
+        proxy_set_header Host $host;
+        proxy_pass_request_headers on;
+        
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header Access-Control-Allow-Origin "*";
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/blog-images /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+# 配置 SSL
+sudo certbot --nginx -d image.yourdomain.com
+```
+
+然后设置环境变量：
+```bash
+STORAGE_FS_BASE_URL=https://image.yourdomain.com
+```
+
+**使用示例**：
+```
+# 原图
+https://image.yourdomain.com/abc123.jpg
+
+# 640px 宽度
+https://image.yourdomain.com/abc123.jpg?w=640
+
+# WebP 格式
+https://image.yourdomain.com/abc123.jpg?format=webp
+
+# 组合：640px + WebP
+https://image.yourdomain.com/abc123.jpg?w=640&format=webp
+```
+
+**方案B：简单静态文件服务（适合小型项目或开发环境）**
+
+如果不需要动态转换功能，可以使用简单的静态文件服务：
+
+```bash
+sudo nano /etc/nginx/sites-available/blog-images
+```
+
+```nginx
+# 图片静态文件服务器
+server {
+    listen 80;
+    server_name image.yourdomain.com;
+
+    root /path/to/your/uploads;  # 修改为实际的上传文件路径
+    
+    location / {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        add_header Access-Control-Allow-Origin "*";
+        access_log off;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/blog-images /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+# 配置 SSL
+sudo certbot --nginx -d image.yourdomain.com
+```
+
+然后设置环境变量：
+```bash
+STORAGE_FS_BASE_URL=https://image.yourdomain.com
+```
+
+**方案C：使用同域名子路径**
+
+在 API 配置中添加：
+
+```nginx
+    # 静态文件服务（用于访问上传的图片）
+    location /uploads/ {
+        alias /path/to/your/uploads/;  # 修改为实际的上传文件路径
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+}
+```
+
+然后设置环境变量：
+```bash
+STORAGE_FS_BASE_URL=https://api.yourdomain.com/uploads
+```
+
+**方案对比**：
+
+| 方案 | 优势 | 适用场景 |
+|------|------|----------|
+| 方案A-选项1 (Nginx image_filter) | ✅ 动态转换<br>✅ 无需额外服务<br>✅ 配置简单 | 中小型项目，需要基本的图片优化 |
+| 方案A-选项2 (imgproxy) | ✅ 功能强大<br>✅ 性能优异<br>✅ 支持更多格式和操作 | **生产环境推荐**，高流量项目 |
+| 方案B (静态文件) | ✅ 最简单<br>✅ 资源占用低 | 小型项目，图片数量少 |
+| 方案C (同域名) | ✅ 无需额外域名 | 开发环境，快速上线 |
+
+**注意事项**：
+- `client_max_body_size 10M` 用于允许上传最大 10MB 的文件
+- 如使用 Docker，需要将上传目录挂载到宿主机，并在 Nginx 中配置宿主机的实际路径
+- **生产环境强烈推荐方案A-选项2（imgproxy）**，提供最佳的移动端加载体验
+- Nginx image_filter 需要编译时包含 `--with-http_image_filter_module`，检查：`nginx -V 2>&1 | grep image_filter`
+- imgproxy 支持更多高级功能（裁剪、水印、滤镜等），详见：https://docs.imgproxy.net/
 
 ### 3. 启用配置
 

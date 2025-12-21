@@ -15,6 +15,7 @@ func SetupRouter(
 	postService *services.PostService,
 	commentService *services.CommentService,
 	settingService *services.SettingService,
+	imageService *services.ImageService,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(middlewares.CORSMiddleware())
@@ -26,6 +27,7 @@ func SetupRouter(
 	commentController := controllers.NewCommentController(commentService)
 	settingController := controllers.NewSettingController(settingService)
 	feedController := controllers.NewFeedController(postService, settingService)
+	imageController := controllers.NewImageController(imageService)
 
 	api := r.Group("/api/v1")
 
@@ -79,6 +81,14 @@ func SetupRouter(
 	settingsProtected := settings.Group("")
 	settingsProtected.Use(middlewares.AuthMiddleware(userService))
 	settingsProtected.PUT("/:key", settingController.Update)
+
+	images := api.Group("/images")
+	images.Use(middlewares.AuthMiddleware(userService))
+	images.POST("/upload", imageController.UploadImage)
+	images.GET("", imageController.ListImages)
+	images.GET("/:id", imageController.GetImage)
+	images.PUT("/:id", imageController.UpdateImage)
+	images.DELETE("/:id", imageController.DeleteImage)
 
 	feed := r.Group("/feed")
 	feed.GET("/atom", feedController.AtomFeed)

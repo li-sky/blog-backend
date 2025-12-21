@@ -52,3 +52,12 @@ type SettingRepository interface {
 	GetByKey(key string) (*models.Setting, error)
 	Upsert(key, value, description string) (*models.Setting, error)
 }
+
+type ImageRepository interface {
+	Create(image *models.Image) error
+	GetByID(id uint) (*models.Image, error)
+	List(offset, limit int) ([]models.Image, int64, error)
+	Update(image *models.Image) error
+	Delete(id uint) error
+	GetByFilename(filename string) (*models.Image, error)
+}

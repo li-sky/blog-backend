@@ -8,6 +8,7 @@ import (
 	"blog-backend/repositories"
 	"blog-backend/router"
 	"blog-backend/services"
+	"blog-backend/utils/storage"
 )
 
 func main() {
@@ -23,6 +24,7 @@ func main() {
 		&models.Post{},
 		&models.Comment{},
 		&models.Setting{},
+		&models.Image{},
 	); err != nil {
 		log.Fatalf("migration failed: %v", err)
 	}
@@ -32,6 +34,7 @@ func main() {
 	postRepo := repositories.NewPostRepository(db)
 	commentRepo := repositories.NewCommentRepository(db)
 	settingRepo := repositories.NewSettingRepository(db)
+	imageRepo := repositories.NewImageRepo(db)
 
 	userService := services.NewUserService(userRepo, roleRepo)
 	roleService := services.NewRoleService(roleRepo)
@@ -39,7 +42,15 @@ func main() {
 	commentService := services.NewCommentService(commentRepo, postRepo)
 	settingService := services.NewSettingService(settingRepo)
 
-	app := router.SetupRouter(userService, roleService, postService, commentService, settingService)
+	// 初始化存储后端
+	storageSvc, err := storage.NewStorageFromEnv()
+	if err != nil {
+		log.Fatalf("failed to initialize storage: %v", err)
+	}
+
+	imageService := services.NewImageService(imageRepo, storageSvc)
+
+	app := router.SetupRouter(userService, roleService, postService, commentService, settingService, imageService)
 
 	if err := app.Run(); err != nil {
 		log.Fatalf("server error: %v", err)

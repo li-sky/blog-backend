@@ -102,12 +102,27 @@ func (s *PostService) GetPostForUser(user *models.User, id uint) (*models.Post, 
 	if id == 0 {
 		return nil, errors.New("post id is required")
 	}
-	// If user has edit_post permission, they can see any post (draft, published, etc.)
-	if user != nil && userHasPermission(user, "edit_post") {
-		return s.repo.GetByID(id)
+
+	post, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
 	}
-	// Otherwise, they can only see published posts
-	return s.repo.GetByIDAndStatus(id, publishedPostStatus)
+
+	// If published, everyone can see
+	if post.Status == publishedPostStatus {
+		return post, nil
+	}
+
+	// If not published, check permissions
+	if user != nil {
+		// Admin/Editor or Author
+		if userHasPermission(user, "edit_post") || post.UserID == user.ID {
+			return post, nil
+		}
+	}
+
+	// Post exists but user is not allowed to see it
+	return nil, errors.New("record not found")
 }
 
 func (s *PostService) GetPublishedPost(id uint) (*models.Post, error) {

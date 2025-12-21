@@ -4,6 +4,7 @@ import (
 	"blog-backend/middlewares"
 	"blog-backend/models"
 	"blog-backend/services"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -111,8 +112,15 @@ func (pc *PostController) Get(c *gin.Context) {
 		return
 	}
 	user, _ := middlewares.CurrentUser(c)
+	if user != nil {
+		fmt.Printf("PostController.Get: Requesting post %d by user %s (ID: %d)\n", id, user.Username, user.ID)
+	} else {
+		fmt.Printf("PostController.Get: Requesting post %d by anonymous\n", id)
+	}
+
 	post, err := pc.service.GetPostForUser(user, id)
 	if err != nil {
+		fmt.Printf("PostController.Get: Error getting post: %v\n", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"blog-backend/models"
 	"blog-backend/services"
 	"blog-backend/utils"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -36,6 +37,39 @@ func AuthMiddleware(userService *services.UserService) gin.HandlerFunc {
 			return
 		}
 
+		c.Set(contextUserKey, user)
+		c.Set(contextClaimsKey, claims)
+		c.Next()
+	}
+}
+
+// OptionalAuthMiddleware attempts to authenticate the user but does not enforce it.
+func OptionalAuthMiddleware(userService *services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := extractToken(c)
+		if token == "" {
+			fmt.Println("OptionalAuthMiddleware: No token found")
+			c.Next()
+			return
+		}
+
+		claims, err := utils.ParseToken(token)
+		if err != nil {
+			fmt.Println("OptionalAuthMiddleware: Invalid token:", err)
+			// Invalid token, treat as anonymous
+			c.Next()
+			return
+		}
+
+		user, err := userService.GetByID(claims.UserID)
+		if err != nil || user == nil {
+			fmt.Println("OptionalAuthMiddleware: User not found for ID:", claims.UserID)
+			// User not found, treat as anonymous
+			c.Next()
+			return
+		}
+
+		fmt.Printf("OptionalAuthMiddleware: User authenticated: %s (ID: %d)\n", user.Username, user.ID)
 		c.Set(contextUserKey, user)
 		c.Set(contextClaimsKey, claims)
 		c.Next()

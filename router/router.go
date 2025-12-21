@@ -57,6 +57,7 @@ func SetupRouter(
 	roles.DELETE("/:id", roleController.Delete)
 
 	posts := api.Group("/posts")
+	posts.Use(middlewares.OptionalAuthMiddleware(userService))
 	posts.GET("", postController.List)
 	posts.GET("/:postID", postController.Get)
 

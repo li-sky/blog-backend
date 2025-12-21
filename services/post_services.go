@@ -98,6 +98,18 @@ func (s *PostService) GetPost(id uint) (*models.Post, error) {
 	return s.repo.GetByID(id)
 }
 
+func (s *PostService) GetPostForUser(user *models.User, id uint) (*models.Post, error) {
+	if id == 0 {
+		return nil, errors.New("post id is required")
+	}
+	// If user has edit_post permission, they can see any post (draft, published, etc.)
+	if user != nil && userHasPermission(user, "edit_post") {
+		return s.repo.GetByID(id)
+	}
+	// Otherwise, they can only see published posts
+	return s.repo.GetByIDAndStatus(id, publishedPostStatus)
+}
+
 func (s *PostService) GetPublishedPost(id uint) (*models.Post, error) {
 	if id == 0 {
 		return nil, errors.New("post id is required")

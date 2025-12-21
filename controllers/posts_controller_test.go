@@ -137,7 +137,16 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 
 	postSvc := services.NewPostService(postRepoCtrlStub{
 		getByID: func(id uint) (*models.Post, error) {
-			return &models.Post{Model: gorm.Model{ID: id}, Status: "draft"}, nil
+			return &models.Post{
+				Model:  gorm.Model{ID: id},
+				Status: "draft",
+				UserID: 2,
+				User: models.User{
+					Model:    gorm.Model{ID: 2},
+					Username: "author",
+					Email:    "author@example.com",
+				},
+			}, nil
 		},
 		getByIDStatus: func(id uint, status string) (*models.Post, error) {
 			if status != "published" {
@@ -367,4 +376,64 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/posts/manage", nil)
 	r2.ServeHTTP(w, req)
 	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestPostController_Get_Permissions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	postSvc := services.NewPostService(postRepoCtrlStub{
+		getByID: func(id uint) (*models.Post, error) {
+			return &models.Post{Model: gorm.Model{ID: id}, Status: "draft", Title: "Draft Post"}, nil
+		},
+		getByIDStatus: func(id uint, status string) (*models.Post, error) {
+			if status == "published" {
+				return &models.Post{Model: gorm.Model{ID: id}, Status: "published", Title: "Published Post"}, nil
+			}
+			return nil, errors.New("record not found")
+		},
+	})
+
+	pc := NewPostController(postSvc)
+
+	// Case 1: User with edit_post permission should get Draft post (via GetByID)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("currentUser", controllerUser(1, "edit_post"))
+	})
+	r.GET("/posts/:postID", pc.Get)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/posts/1", nil)
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	require.Equal(t, "Draft Post", resp["title"])
+
+	// Case 2: User without edit_post permission should get Published Post (via GetByIDAndStatus)
+	r2 := gin.New()
+	r2.Use(func(c *gin.Context) {
+		c.Set("currentUser", controllerUser(2))
+	})
+	r2.GET("/posts/:postID", pc.Get)
+
+	w2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/posts/1", nil)
+	r2.ServeHTTP(w2, req2)
+	require.Equal(t, http.StatusOK, w2.Code)
+	var resp2 map[string]any
+	json.Unmarshal(w2.Body.Bytes(), &resp2)
+	require.Equal(t, "Published Post", resp2["title"])
+
+	// Case 3: Anonymous user should get Published Post (via GetByIDAndStatus)
+	r3 := gin.New()
+	r3.GET("/posts/:postID", pc.Get)
+
+	w3 := httptest.NewRecorder()
+	req3 := httptest.NewRequest(http.MethodGet, "/posts/1", nil)
+	r3.ServeHTTP(w3, req3)
+	require.Equal(t, http.StatusOK, w3.Code)
+	var resp3 map[string]any
+	json.Unmarshal(w3.Body.Bytes(), &resp3)
+	require.Equal(t, "Published Post", resp3["title"])
 }

@@ -110,7 +110,8 @@ func (pc *PostController) Get(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	post, err := pc.service.GetPublishedPost(id)
+	user, _ := middlewares.CurrentUser(c)
+	post, err := pc.service.GetPostForUser(user, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

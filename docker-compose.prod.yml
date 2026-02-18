@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME:-blog}
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - /data/db:/var/lib/postgresql/data
     networks:
       - blog-network
     restart: unless-stopped
@@ -33,7 +33,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - uploads-data:/uploads
+      - /data/uploads:/uploads
     networks:
       - blog-network
     restart: unless-stopped
@@ -51,7 +51,7 @@ services:
       - "8081:8080"
     environment:
       IMGPROXY_LOCAL_FILESYSTEM_ROOT: /uploads
-      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      IMGPROXY_AUTO_WEBP: "true"
       IMGPROXY_USE_ETAG: "true"
       IMGPROXY_TTL: 2592000  # 30天缓存
       IMGPROXY_MAX_SRC_RESOLUTION: 50  # 最大 50MP
@@ -60,7 +60,7 @@ services:
       IMGPROXY_QUALITY: 85
       IMGPROXY_GZIP_COMPRESSION: 5
     volumes:
-      - uploads-data:/uploads:ro
+      - /data/uploads:/uploads:ro
     networks:
       - blog-network
     restart: unless-stopped
@@ -69,10 +69,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-volumes:
-  db-data:
-  uploads-data:
 
 networks:
   blog-network:

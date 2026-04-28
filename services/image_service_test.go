@@ -148,9 +148,9 @@ func TestImageService_UploadImage(t *testing.T) {
 		service := NewImageService(&stubImageRepo{}, &stubStorageBackend{})
 
 		user := createTestUserWithPermission(1, "upload_image")
-		// 创建一个大于 10MB 的文件
-		largeData := make([]byte, 11*1024*1024)
-		fileHeader := createTestFileHeader(t, "large.jpg", "image/jpeg", largeData)
+		// 模拟一个大于 50MB 的文件
+		fileHeader := createTestFileHeader(t, "large.jpg", "image/jpeg", []byte("small data"))
+		fileHeader.Size = MaxImageSize + 1
 
 		result, err := service.UploadImage(user, fileHeader, "", "127.0.0.1")
 

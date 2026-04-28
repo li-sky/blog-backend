@@ -209,7 +209,7 @@ server {
     listen 80;
     server_name api.yourdomain.com;
 
-    client_max_body_size 10M;
+    client_max_body_size 50M;
 
     # API 代理
     location / {
@@ -477,7 +477,7 @@ STORAGE_FS_BASE_URL=https://api.yourdomain.com/uploads
 | 方案C (同域名) | ✅ 无需额外域名 | 开发环境，快速上线 |
 
 **注意事项**：
-- `client_max_body_size 10M` 用于允许上传最大 10MB 的文件
+- `client_max_body_size 50M` 用于允许上传最大 50MB 的文件
 - 如使用 Docker，需要将上传目录挂载到宿主机，并在 Nginx 中配置宿主机的实际路径
 - **生产环境强烈推荐方案A-选项2（imgproxy）**，提供最佳的移动端加载体验
 - Nginx image_filter 需要编译时包含 `--with-http_image_filter_module`，检查：`nginx -V 2>&1 | grep image_filter`

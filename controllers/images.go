@@ -57,7 +57,7 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, services.ErrImageTooLarge) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "image size exceeds 10MB limit"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "image size exceeds 50MB limit"})
 			return
 		}
 		// 记录详细错误用于调试

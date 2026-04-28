@@ -19,7 +19,7 @@ var (
 )
 
 const (
-	MaxImageSize = 10 * 1024 * 1024 // 10MB
+	MaxImageSize = 50 * 1024 * 1024 // 50MB
 )
 
 var allowedExtensions = map[string]bool{

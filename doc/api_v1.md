@@ -528,7 +528,7 @@
   - `STORAGE_FS_BASE_PATH`：文件存储基础路径（默认 `./uploads`）
   - `STORAGE_FS_BASE_URL`：文件访问完整 URL 前缀（如 `https://image.yourdomain.com` 或 `https://cdn.example.com/images`）
 - 上传限制：
-  - 单个文件最大 10MB
+  - 单个文件最大 50MB
   - 支持的图片格式：jpg, jpeg, png, gif, webp
   - 文件名自动生成（使用 UUID + 原扩展名），避免冲突
 - URL 生成规则：返回的 `url` 字段 = `STORAGE_FS_BASE_URL` + `/` + `filename`

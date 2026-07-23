@@ -70,6 +70,54 @@ services:
       timeout: 5s
       retries: 3
 
+  backup:
+    image: ghcr.io/li-sky/blog-backup:latest
+    container_name: blog-backup
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SOURCE_UPLOADS_PATH: ${SOURCE_UPLOADS_PATH:-/data/uploads}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-blog}
+      DB_USER: ${DB_USER:-blog}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD}
+      RESTIC_S3_ENDPOINT: ${RESTIC_S3_ENDPOINT}
+      RESTIC_S3_BUCKET: ${RESTIC_S3_BUCKET}
+      RESTIC_S3_REGION: ${RESTIC_S3_REGION:-us-east-1}
+      RESTIC_S3_ACCESS_KEY: ${RESTIC_S3_ACCESS_KEY}
+      RESTIC_S3_SECRET_KEY: ${RESTIC_S3_SECRET_KEY}
+      RESTIC_S3_BUCKET_LOOKUP: ${RESTIC_S3_BUCKET_LOOKUP:-path}
+      RESTIC_BASE_PREFIX: ${RESTIC_BASE_PREFIX:-blog-backup}
+      UPLOADS_EXCLUDES: ${UPLOADS_EXCLUDES:-*.tmp *.swp */tmp/*}
+      ENABLE_RETENTION_PRUNE: ${ENABLE_RETENTION_PRUNE:-true}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,db}
+      V2RAY_ENABLED: ${V2RAY_ENABLED:-false}
+      V2RAY_CONFIG_PATH: ${V2RAY_CONFIG_PATH:-/etc/v2ray/config.json}
+      V2RAY_HTTP_PROXY: ${V2RAY_HTTP_PROXY:-http://127.0.0.1:10809}
+      V2RAY_USE_V5: ${V2RAY_USE_V5:-false}
+    volumes:
+      - ${SOURCE_UPLOADS_PATH:-/data/uploads}:/source/uploads:ro
+      - backup-state:/state
+      - ${V2RAY_CONFIG_HOST_PATH:-./.v2rayconfig.json}:${V2RAY_CONFIG_PATH:-/etc/v2ray/config.json}:ro
+    networks:
+      - blog-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "/scripts/healthcheck.sh"]
+      interval: 5m
+      timeout: 15s
+      retries: 2
+      start_period: 45s
+
 networks:
   blog-network:
     driver: bridge
+
+volumes:
+  backup-state:

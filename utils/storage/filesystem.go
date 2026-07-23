@@ -103,6 +103,9 @@ func (fs *FilesystemStorage) SaveVariant(originalFilename, label string, fileHea
 	if _, err := io.Copy(temp, src); err != nil {
 		return "", "", fmt.Errorf("failed to save image variant: %w", err)
 	}
+	if err := temp.Chmod(0644); err != nil {
+		return "", "", fmt.Errorf("failed to set image variant permissions: %w", err)
+	}
 	if err := temp.Close(); err != nil {
 		return "", "", fmt.Errorf("failed to close image variant: %w", err)
 	}

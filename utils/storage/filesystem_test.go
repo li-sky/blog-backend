@@ -9,6 +9,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -83,6 +84,25 @@ func TestFilesystemStorage_Save(t *testing.T) {
 
 		assert.NotEqual(t, filename1, filename2)
 	})
+}
+
+func TestFilesystemStorage_SaveVariant(t *testing.T) {
+	tmpDir := t.TempDir()
+	fs, err := NewFilesystemStorage(tmpDir, "http://localhost:8080/uploads")
+	require.NoError(t, err)
+
+	fileHeader := createTestFileHeader(t, "test_w1200.webp", "image/webp", []byte("webp data"))
+	filename, url, err := fs.SaveVariant("original.jpg", "w1200", fileHeader)
+
+	require.NoError(t, err)
+	assert.Equal(t, "original_w1200.webp", filename)
+	assert.Equal(t, "http://localhost:8080/uploads/original_w1200.webp", url)
+
+	info, err := os.Stat(filepath.Join(tmpDir, filename))
+	require.NoError(t, err)
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+	}
 }
 
 func TestFilesystemStorage_Delete(t *testing.T) {

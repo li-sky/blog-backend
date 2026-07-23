@@ -3,13 +3,14 @@
 ## 架构
 
 图片处理发生在管理端浏览器中。编辑器使用 Web Worker + WebAssembly
-生成两份固定 WebP，然后与原图一起上传：
+生成三份固定 WebP，然后与原图一起上传：
 
 ```text
 浏览器
   ├─ 原图
   ├─ <uuid>_w600.webp
-  └─ <uuid>_w1200.webp
+  ├─ <uuid>_w1200.webp
+  └─ <uuid>_full.webp
           │
           ▼
       Go API ─── PostgreSQL
@@ -89,10 +90,10 @@ server {
 }
 ```
 
-API 上传限制应覆盖原图和两个 WebP 的总请求大小：
+API 上传限制应覆盖原图和三个 WebP 的总请求大小：
 
 ```nginx
-client_max_body_size 80M;
+client_max_body_size 160M;
 
 location /api/v1/images/ {
     proxy_pass http://127.0.0.1:8080;
@@ -111,8 +112,8 @@ location /api/v1/images/ {
 3. 保持页面打开，等待所有图片变为“已完成”或“无需转换”。
 4. 对失败项使用“重试失败项”。
 
-页面按顺序处理图片，避免多个大图同时占用内存。转换接口会验证
-WebP 格式、目标尺寸与原图长宽比。
+页面使用四个并发任务处理图片。转换接口会验证 WebP 格式、目标尺寸
+与原图长宽比。
 
 ## 验证
 
@@ -121,6 +122,7 @@ curl https://api.yourdomain.com/health
 curl -I https://image.yourdomain.com/<uuid>.jpg
 curl -I https://image.yourdomain.com/<uuid>_w600.webp
 curl -I https://image.yourdomain.com/<uuid>_w1200.webp
+curl -I https://image.yourdomain.com/<uuid>_full.webp
 ```
 
 确认静态图片响应包含长期缓存头和 `Access-Control-Allow-Origin`。

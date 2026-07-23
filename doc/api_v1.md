@@ -445,6 +445,9 @@
 - 表单字段：
   - `file`：图片文件（必需，支持 jpg, jpeg, png, gif, webp 格式）
   - `alt`：图片描述文本（可选）
+  - `webp600`：宽度为 `min(原图宽度, 600)` 的 WebP（非 GIF）
+  - `webp1200`：宽度为 `min(原图宽度, 1200)` 的 WebP（非 GIF）
+  - `webpFull`：保持原图像素尺寸的 WebP（非 GIF）
 - 响应体：
 ```json
 {
@@ -487,6 +490,7 @@
       "url": "https://image.yourdomain.com/abc123.jpg",
       "webp600Url": "https://image.yourdomain.com/abc123_w600.webp",
       "webp1200Url": "https://image.yourdomain.com/abc123_w1200.webp",
+      "webpFullUrl": "https://image.yourdomain.com/abc123_full.webp",
       "variantsComplete": true,
       "userId": 1,
       "storageBackend": "filesystem",
@@ -524,6 +528,7 @@
 - 请求格式：`multipart/form-data`
   - `webp600`：宽度为 `min(原图宽度, 600)` 的 WebP
   - `webp1200`：宽度为 `min(原图宽度, 1200)` 的 WebP
+  - `webpFull`：保持原图像素尺寸的 WebP
 - 服务端会验证格式、尺寸和长宽比。
 
 ### 7.6 删除图片
@@ -554,6 +559,7 @@
 - 原图：`https://image.yourdomain.com/abc123.jpg`
 - 600px：`https://image.yourdomain.com/abc123_w600.webp`
 - 1200px：`https://image.yourdomain.com/abc123_w1200.webp`
+- 原始分辨率：`https://image.yourdomain.com/abc123_full.webp`
 - **响应式图片示例**：
 ```html
 <picture>

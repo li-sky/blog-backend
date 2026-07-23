@@ -37,6 +37,8 @@ type Image struct {
 	WebP600URL       string `json:"webp600Url,omitempty" gorm:"type:varchar(500)"`
 	WebP1200Filename string `json:"-" gorm:"type:varchar(255)"`
 	WebP1200URL      string `json:"webp1200Url,omitempty" gorm:"type:varchar(500)"`
+	WebPFullFilename string `json:"-" gorm:"type:varchar(255)"`
+	WebPFullURL      string `json:"webpFullUrl,omitempty" gorm:"type:varchar(500)"`
 
 	// 只用于 API 响应，不持久化。
 	VariantsComplete bool `json:"variantsComplete" gorm:"-"`

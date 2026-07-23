@@ -75,7 +75,7 @@ func (fs *FilesystemStorage) Save(fileHeader *multipart.FileHeader) (string, str
 // SaveVariant stores a generated WebP next to its original using a predictable
 // suffix (for example, <uuid>_w600.webp).
 func (fs *FilesystemStorage) SaveVariant(originalFilename, label string, fileHeader *multipart.FileHeader) (string, string, error) {
-	if label != "w600" && label != "w1200" {
+	if label != "w600" && label != "w1200" && label != "full" {
 		return "", "", fmt.Errorf("unsupported image variant: %s", label)
 	}
 

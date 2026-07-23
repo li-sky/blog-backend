@@ -264,6 +264,11 @@ Content-Disposition: form-data; name="webp1200"; filename="test_w1200.webp"
 Content-Type: image/webp
 
 < ./test_files/test_w1200.webp
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="webpFull"; filename="test_full.webp"
+Content-Type: image/webp
+
+< ./test_files/test_full.webp
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### 7.2 获取图片列表（需要登录）
@@ -298,6 +303,11 @@ Content-Disposition: form-data; name="webp1200"; filename="test_w1200.webp"
 Content-Type: image/webp
 
 < ./test_files/test_w1200.webp
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="webpFull"; filename="test_full.webp"
+Content-Type: image/webp
+
+< ./test_files/test_full.webp
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### 7.6 删除图片（示例 ID=1，需要登录）

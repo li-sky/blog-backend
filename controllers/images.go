@@ -42,6 +42,7 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 	alt := c.PostForm("alt")
 	webp600, _ := c.FormFile("webp600")
 	webp1200, _ := c.FormFile("webp1200")
+	webpFull, _ := c.FormFile("webpFull")
 
 	// 获取客户端 IP
 	ipAddress := c.ClientIP()
@@ -52,7 +53,7 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 		fileHeader,
 		alt,
 		ipAddress,
-		services.ImageVariantFiles{WebP600: webp600, WebP1200: webp1200},
+		services.ImageVariantFiles{WebP600: webp600, WebP1200: webp1200, WebPFull: webpFull},
 	)
 	if err != nil {
 		// 检查权限错误
@@ -96,7 +97,8 @@ func (ctrl *ImageController) UpdateImageVariants(c *gin.Context) {
 
 	webp600, _ := c.FormFile("webp600")
 	webp1200, _ := c.FormFile("webp1200")
-	if webp600 == nil && webp1200 == nil {
+	webpFull, _ := c.FormFile("webpFull")
+	if webp600 == nil && webp1200 == nil && webpFull == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one image variant is required"})
 		return
 	}
@@ -104,7 +106,7 @@ func (ctrl *ImageController) UpdateImageVariants(c *gin.Context) {
 	image, err := ctrl.imageService.UpdateImageVariants(
 		currentUser,
 		uint(id),
-		services.ImageVariantFiles{WebP600: webp600, WebP1200: webp1200},
+		services.ImageVariantFiles{WebP600: webp600, WebP1200: webp1200, WebPFull: webpFull},
 	)
 	if err != nil {
 		switch {

@@ -24,12 +24,13 @@ var (
 
 const (
 	MaxImageSize   = 50 * 1024 * 1024 // 50MB
-	MaxVariantSize = 12 * 1024 * 1024
+	MaxVariantSize = 50 * 1024 * 1024
 )
 
 type ImageVariantFiles struct {
 	WebP600  *multipart.FileHeader
 	WebP1200 *multipart.FileHeader
+	WebPFull *multipart.FileHeader
 }
 
 var allowedExtensions = map[string]bool{
@@ -132,7 +133,7 @@ func (s *ImageService) uploadImage(user *models.User, fileHeader *multipart.File
 		}
 	}
 
-	if !isVariantExempt(image) && (variants.WebP600 != nil || variants.WebP1200 != nil) {
+	if !isVariantExempt(image) && (variants.WebP600 != nil || variants.WebP1200 != nil || variants.WebPFull != nil) {
 		variantStorage, ok := s.storageBackend.(storage.VariantStorageBackend)
 		if !ok {
 			cleanup()
@@ -157,6 +158,16 @@ func (s *ImageService) uploadImage(user *models.User, fileHeader *multipart.File
 			}
 			image.WebP1200Filename = variantFilename
 			image.WebP1200URL = variantURL
+			storedFiles = append(storedFiles, variantFilename)
+		}
+		if variants.WebPFull != nil {
+			variantFilename, variantURL, err := s.saveVariant(variantStorage, image, variants.WebPFull, 0)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			image.WebPFullFilename = variantFilename
+			image.WebPFullURL = variantURL
 			storedFiles = append(storedFiles, variantFilename)
 		}
 	}
@@ -218,7 +229,7 @@ func (s *ImageService) UpdateImageVariants(user *models.User, id uint, variants 
 		return nil, ErrVariantUnsupported
 	}
 
-	storedFiles := make([]string, 0, 2)
+	storedFiles := make([]string, 0, 3)
 	cleanup := func() {
 		for _, filename := range storedFiles {
 			_ = s.storageBackend.Delete(filename)
@@ -250,6 +261,21 @@ func (s *ImageService) UpdateImageVariants(user *models.User, id uint, variants 
 		}
 		image.WebP1200Filename = filename
 		image.WebP1200URL = url
+		storedFiles = append(storedFiles, filename)
+	}
+
+	if image.WebPFullURL == "" {
+		if variants.WebPFull == nil {
+			cleanup()
+			return nil, fmt.Errorf("%w: webpFull is required", ErrInvalidVariant)
+		}
+		filename, url, err := s.saveVariant(variantStorage, image, variants.WebPFull, 0)
+		if err != nil {
+			cleanup()
+			return nil, err
+		}
+		image.WebPFullFilename = filename
+		image.WebPFullURL = url
 		storedFiles = append(storedFiles, filename)
 	}
 
@@ -305,7 +331,7 @@ func (s *ImageService) DeleteImage(user *models.User, id uint) error {
 	if err := s.storageBackend.Delete(image.Filename); err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
-	for _, variantFilename := range []string{image.WebP600Filename, image.WebP1200Filename} {
+	for _, variantFilename := range []string{image.WebP600Filename, image.WebP1200Filename, image.WebPFullFilename} {
 		if variantFilename != "" {
 			if err := s.storageBackend.Delete(variantFilename); err != nil {
 				return fmt.Errorf("failed to delete image variant: %w", err)
@@ -379,12 +405,16 @@ func (s *ImageService) saveVariant(backend storage.VariantStorageBackend, image 
 		)
 	}
 
-	return backend.SaveVariant(image.Filename, fmt.Sprintf("w%d", targetWidth), fileHeader)
+	label := "full"
+	if targetWidth > 0 {
+		label = fmt.Sprintf("w%d", targetWidth)
+	}
+	return backend.SaveVariant(image.Filename, label, fileHeader)
 }
 
 func matchesVariantDimensions(width, height, originalWidth, originalHeight, targetWidth int) bool {
 	expectedWidth := targetWidth
-	if originalWidth < expectedWidth {
+	if expectedWidth <= 0 || originalWidth < expectedWidth {
 		expectedWidth = originalWidth
 	}
 	expectedHeight := int(math.Round(float64(originalHeight) * float64(expectedWidth) / float64(originalWidth)))
@@ -397,5 +427,5 @@ func isVariantExempt(image *models.Image) bool {
 
 func setVariantsComplete(image *models.Image) {
 	image.VariantsComplete = isVariantExempt(image) ||
-		(image.WebP600URL != "" && image.WebP1200URL != "")
+		(image.WebP600URL != "" && image.WebP1200URL != "" && image.WebPFullURL != "")
 }

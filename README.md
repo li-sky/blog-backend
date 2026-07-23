@@ -62,6 +62,7 @@ http://localhost        ← Nginx (反向代理)
 原图:     http://localhost/images/abc123.jpg
 600px:    http://localhost/images/abc123_w600.webp
 1200px:   http://localhost/images/abc123_w1200.webp
+完整尺寸: http://localhost/images/abc123_full.webp
 ```
 
 ### 本地开发（不使用 Docker）
@@ -138,9 +139,9 @@ chmod +x deploy.sh
 
 ## 🖼️ 图片服务
 
-编辑器会在 Web Worker 中通过 WebAssembly 为每张静态图片生成两份 WebP。
+编辑器会在 Web Worker 中通过 WebAssembly 为每张静态图片生成三份 WebP。
 原图小于目标宽度时不会放大，但仍使用固定 variant 文件名。动画 GIF
-保留原图。历史图片可在管理后台的 `Upgrade Images` 页面逐张升级。
+保留原图。历史图片可在管理后台的 `Upgrade Images` 页面四张并发升级。
 
 **响应式图片示例**：
 ```html

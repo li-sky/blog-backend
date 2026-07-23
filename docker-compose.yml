@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -33,22 +31,7 @@ services:
       - blog-network
     restart: unless-stopped
 
-  # 图片动态转换服务（可选，推荐生产环境使用）
-  imgproxy:
-    image: darthsim/imgproxy:latest
-    environment:
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /uploads
-      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
-      IMGPROXY_USE_ETAG: "true"
-      IMGPROXY_TTL: 2592000  # 30天缓存
-      IMGPROXY_MAX_SRC_RESOLUTION: 50  # 最大 50MP
-    volumes:
-      - uploads-data:/uploads:ro
-    networks:
-      - blog-network
-    restart: unless-stopped
-
-  # Nginx 代理（图片转换 + API 代理）
+  # Nginx 代理（静态图片 + API 代理）
   nginx:
     image: nginx:alpine
     ports:
@@ -58,7 +41,6 @@ services:
       - uploads-data:/uploads:ro
     depends_on:
       - api
-      - imgproxy
     networks:
       - blog-network
     restart: unless-stopped

@@ -40,12 +40,20 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 
 	// 获取可选的描述文本
 	alt := c.PostForm("alt")
+	webp600, _ := c.FormFile("webp600")
+	webp1200, _ := c.FormFile("webp1200")
 
 	// 获取客户端 IP
 	ipAddress := c.ClientIP()
 
 	// 调用服务层上传图片
-	image, err := ctrl.imageService.UploadImage(currentUser, fileHeader, alt, ipAddress)
+	image, err := ctrl.imageService.UploadImageWithVariants(
+		currentUser,
+		fileHeader,
+		alt,
+		ipAddress,
+		services.ImageVariantFiles{WebP600: webp600, WebP1200: webp1200},
+	)
 	if err != nil {
 		// 检查权限错误
 		if strings.Contains(err.Error(), "permission denied") {
@@ -60,12 +68,59 @@ func (ctrl *ImageController) UploadImage(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "image size exceeds 50MB limit"})
 			return
 		}
+		if errors.Is(err, services.ErrInvalidVariant) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		// 记录详细错误用于调试
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload image", "details": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, image)
+}
+
+// UpdateImageVariants upgrades a legacy image with browser-generated WebP files.
+func (ctrl *ImageController) UpdateImageVariants(c *gin.Context) {
+	currentUser, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image id"})
+		return
+	}
+
+	webp600, _ := c.FormFile("webp600")
+	webp1200, _ := c.FormFile("webp1200")
+	if webp600 == nil && webp1200 == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one image variant is required"})
+		return
+	}
+
+	image, err := ctrl.imageService.UpdateImageVariants(
+		currentUser,
+		uint(id),
+		services.ImageVariantFiles{WebP600: webp600, WebP1200: webp1200},
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrImageNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
+		case errors.Is(err, services.ErrInvalidVariant):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case strings.Contains(err.Error(), "permission denied"):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update image variants", "details": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, image)
 }
 
 // ListImages 获取图片列表

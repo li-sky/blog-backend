@@ -16,6 +16,13 @@ type StorageBackend interface {
 	GetImageDimensions(file multipart.File) (width, height int, err error)
 }
 
+// VariantStorageBackend is implemented by storage backends that can save a
+// deterministic derivative next to an original image.
+type VariantStorageBackend interface {
+	StorageBackend
+	SaveVariant(originalFilename, label string, file *multipart.FileHeader) (filename string, url string, err error)
+}
+
 // NewStorageFromEnv 从环境变量创建存储后端实例
 func NewStorageFromEnv() (StorageBackend, error) {
 	backend := getEnv("STORAGE_BACKEND", "filesystem")

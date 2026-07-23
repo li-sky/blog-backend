@@ -31,6 +31,16 @@ type Image struct {
 	// 完整的访问 URL
 	URL string `json:"url" gorm:"type:varchar(500);not null"`
 
+	// 上传时预生成的固定 WebP 变体。文件名由原图文件名确定，
+	// 这样文章 Markdown 只需保存原图 URL。
+	WebP600Filename  string `json:"-" gorm:"type:varchar(255)"`
+	WebP600URL       string `json:"webp600Url,omitempty" gorm:"type:varchar(500)"`
+	WebP1200Filename string `json:"-" gorm:"type:varchar(255)"`
+	WebP1200URL      string `json:"webp1200Url,omitempty" gorm:"type:varchar(500)"`
+
+	// 只用于 API 响应，不持久化。
+	VariantsComplete bool `json:"variantsComplete" gorm:"-"`
+
 	// 上传者 ID
 	UserID uint `json:"userId" gorm:"not null;index"`
 	User   User `json:"user" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`

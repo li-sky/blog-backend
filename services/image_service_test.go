@@ -473,6 +473,16 @@ func TestImageService_DeleteImage(t *testing.T) {
 	})
 }
 
+func TestMatchesVariantDimensions(t *testing.T) {
+	assert.True(t, matchesVariantDimensions(600, 338, 1600, 900, 600))
+	assert.True(t, matchesVariantDimensions(500, 281, 500, 281, 600))
+	assert.False(t, matchesVariantDimensions(600, 600, 1600, 900, 600))
+
+	// A browser-applied 90-degree EXIF orientation is validated by passing
+	// swapped original dimensions.
+	assert.True(t, matchesVariantDimensions(600, 1067, 900, 1600, 600))
+}
+
 // Helper functions
 
 func createTestFileHeader(t *testing.T, filename, contentType string, data []byte) *multipart.FileHeader {

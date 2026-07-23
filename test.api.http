@@ -254,6 +254,16 @@ Content-Type: image/jpeg
 Content-Disposition: form-data; name="alt"
 
 测试图片
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="webp600"; filename="test_w600.webp"
+Content-Type: image/webp
+
+< ./test_files/test_w600.webp
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="webp1200"; filename="test_w1200.webp"
+Content-Type: image/webp
+
+< ./test_files/test_w1200.webp
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### 7.2 获取图片列表（需要登录）
@@ -273,30 +283,44 @@ Authorization: Bearer {{token}}
   "alt": "更新后的图片描述"
 }
 
-### 7.5 删除图片（示例 ID=1，需要登录）
+### 7.5 为历史图片上传静态变体
+PUT {{host}}/api/v1/images/1/variants
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="webp600"; filename="test_w600.webp"
+Content-Type: image/webp
+
+< ./test_files/test_w600.webp
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="webp1200"; filename="test_w1200.webp"
+Content-Type: image/webp
+
+< ./test_files/test_w1200.webp
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 7.6 删除图片（示例 ID=1，需要登录）
 DELETE {{host}}/api/v1/images/1
 Authorization: Bearer {{token}}
 
-### 7.6 图片 URL 使用说明（需配置 Nginx/imgproxy）
+### 7.7 静态图片 URL 使用说明
 # 假设上传后返回的 URL 为: https://image.yourdomain.com/abc123.jpg
 
 # 原图
 # https://image.yourdomain.com/abc123.jpg
 
-# 640px 宽度（移动端）
-# https://image.yourdomain.com/abc123.jpg?w=640
+# 600px WebP
+# https://image.yourdomain.com/abc123_w600.webp
 
-# WebP 格式
-# https://image.yourdomain.com/abc123.jpg?format=webp
-
-# 组合：640px + WebP（最佳移动端体验）
-# https://image.yourdomain.com/abc123.jpg?w=640&format=webp
+# 1200px WebP
+# https://image.yourdomain.com/abc123_w1200.webp
 
 # 响应式图片 HTML 示例：
 # <picture>
-#   <source srcset="https://image.yourdomain.com/abc123.jpg?w=640&format=webp" 
+#   <source srcset="https://image.yourdomain.com/abc123_w600.webp"
 #           type="image/webp" media="(max-width: 768px)">
-#   <source srcset="https://image.yourdomain.com/abc123.jpg?w=1280&format=webp" 
+#   <source srcset="https://image.yourdomain.com/abc123_w1200.webp"
 #           type="image/webp" media="(min-width: 769px)">
-#   <img src="https://image.yourdomain.com/abc123.jpg?w=1280" alt="图片">
+#   <img src="https://image.yourdomain.com/abc123.jpg" alt="图片">
 # </picture>

@@ -485,6 +485,9 @@
       "width": 1920,
       "height": 1080,
       "url": "https://image.yourdomain.com/abc123.jpg",
+      "webp600Url": "https://image.yourdomain.com/abc123_w600.webp",
+      "webp1200Url": "https://image.yourdomain.com/abc123_w1200.webp",
+      "variantsComplete": true,
       "userId": 1,
       "storageBackend": "filesystem",
       "createdAt": "2025-01-01T00:00:00Z"
@@ -513,7 +516,17 @@
 ```
 - 响应体：更新后的图片对象。
 
-### 7.5 删除图片
+### 7.5 上传历史图片变体
+- 方法：`PUT`
+- 路径：`/api/v1/images/:id/variants`
+- 是否登录：是
+- 权限要求：必须是图片所有者，或拥有 `edit_any_image` 权限
+- 请求格式：`multipart/form-data`
+  - `webp600`：宽度为 `min(原图宽度, 600)` 的 WebP
+  - `webp1200`：宽度为 `min(原图宽度, 1200)` 的 WebP
+- 服务端会验证格式、尺寸和长宽比。
+
+### 7.6 删除图片
 - 方法：`DELETE`
 - 路径：`/api/v1/images/:id`
 - 是否登录：是
@@ -534,46 +547,36 @@
 - URL 生成规则：返回的 `url` 字段 = `STORAGE_FS_BASE_URL` + `/` + `filename`
 - 迁移友好：修改 `STORAGE_FS_BASE_URL` 即可切换到 CDN 或对象存储域名，无需修改代码
 
-**图片动态转换（推荐用于生产环境）**：
+**静态图片变体**：
 
-后端只存储原图，通过 Nginx 或 imgproxy 实现动态转换和缓存，提供不同分辨率和格式的图片。
+图片上传时由前端生成固定的 WebP 文件，Nginx 直接从上传目录提供文件：
 
-**URL 参数用法**（需要配置 Nginx/imgproxy，见部署文档）：
-
-- **宽度调整**：`https://image.yourdomain.com/abc123.jpg?w=640`
-- **格式转换**：`https://image.yourdomain.com/abc123.jpg?format=webp`
-- **组合使用**：`https://image.yourdomain.com/abc123.jpg?w=1280&format=webp`
+- 原图：`https://image.yourdomain.com/abc123.jpg`
+- 600px：`https://image.yourdomain.com/abc123_w600.webp`
+- 1200px：`https://image.yourdomain.com/abc123_w1200.webp`
 - **响应式图片示例**：
 ```html
 <picture>
   <source 
-    srcset="https://image.yourdomain.com/abc123.jpg?w=640&format=webp" 
+    srcset="https://image.yourdomain.com/abc123_w600.webp"
     type="image/webp" 
     media="(max-width: 768px)">
   <source 
-    srcset="https://image.yourdomain.com/abc123.jpg?w=1280&format=webp" 
+    srcset="https://image.yourdomain.com/abc123_w1200.webp"
     type="image/webp" 
     media="(min-width: 769px)">
   <img 
-    src="https://image.yourdomain.com/abc123.jpg?w=1280" 
+    src="https://image.yourdomain.com/abc123.jpg"
     alt="responsive image" 
     loading="lazy">
 </picture>
 ```
 
-**常用分辨率建议**：
-- `w=320` - 小屏幕移动设备（缩略图）
-- `w=640` - 移动设备
-- `w=1280` - 平板/桌面
-- `w=1920` - 高清桌面
-- 原图 - 不带参数
-
 **优势**：
-- ✅ 后端无需处理图片转换，逻辑简单
-- ✅ 按需生成，节省存储空间
-- ✅ Nginx/imgproxy 自动缓存，性能优异
-- ✅ 前端灵活控制图片尺寸和格式
-- ✅ 支持 WebP 自动协商（客户端支持时自动返回 WebP）
+- ✅ 阅读请求不触发图片编码
+- ✅ 文件 URL 不包含动态转换参数
+- ✅ 可以使用长期 immutable 缓存
+- ✅ 原图始终保留，未来可重新生成其他规格
 
 ---
 

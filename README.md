@@ -11,7 +11,7 @@ Go + Gin + GORM 的博客后端服务。
 - 👤 用户认证与权限管理（JWT）
 - 📝 文章管理（CRUD、发布/草稿、标签）
 - 💬 评论系统（嵌套回复）
-- 🖼️ 图床功能（支持动态转换、多分辨率、WebP）
+- 🖼️ 图床功能（原图 + 600/1200px 静态 WebP）
 - 📰 RSS/Atom Feed 订阅
 - ⚙️ 系统设置管理
 - 🔐 基于角色的访问控制（RBAC）
@@ -22,7 +22,7 @@ Go + Gin + GORM 的博客后端服务。
 - **框架**: Gin (Web), GORM (ORM)
 - **数据库**: PostgreSQL
 - **认证**: JWT
-- **图片处理**: imgproxy (动态转换)
+- **图片处理**: 浏览器 WebAssembly 编码 + Nginx 静态服务
 - **容器化**: Docker + Docker Compose
 
 ## 🚀 快速开始
@@ -40,7 +40,7 @@ cp .env.example .env
 # 编辑 .env 文件（必须修改 JWT_SECRET 和 DB_PASSWORD）
 nano .env
 
-# 启动所有服务（API + PostgreSQL + imgproxy + Nginx）
+# 启动所有服务（API + PostgreSQL + Nginx）
 docker-compose up -d
 
 # 查看日志
@@ -54,14 +54,14 @@ curl http://localhost/api/v1/health
 ```
 http://localhost        ← Nginx (反向代理)
   ├─ /api/*             → API 服务 (8080)
-  └─ /images/*          → imgproxy (图片动态转换)
+  └─ /images/*          → /uploads (静态图片)
 ```
 
 **图片使用示例**：
 ```
 原图:     http://localhost/images/abc123.jpg
-640px:    http://localhost/images/abc123.jpg?w=640
-WebP:     http://localhost/images/abc123.jpg?w=640&format=webp
+600px:    http://localhost/images/abc123_w600.webp
+1200px:   http://localhost/images/abc123_w1200.webp
 ```
 
 ### 本地开发（不使用 Docker）
@@ -138,31 +138,16 @@ chmod +x deploy.sh
 
 ## 🖼️ 图片服务
 
-项目支持两种图片服务方式：
-
-### 开发环境
-使用 Docker Compose 内置的 imgproxy + Nginx，URL 参数示例：
-```
-http://localhost/images/photo.jpg?w=640&format=webp
-```
-
-### 生产环境
-推荐使用独立图片域名 + imgproxy：
-```
-https://image.yourdomain.com/photo.jpg?w=1280&format=webp
-```
-
-**支持的参数**：
-- `w` - 宽度（如 320, 640, 1280, 1920）
-- `format` - 格式（webp）
-- 自动 WebP 检测（根据浏览器 Accept 头）
+编辑器会在 Web Worker 中通过 WebAssembly 为每张静态图片生成两份 WebP。
+原图小于目标宽度时不会放大，但仍使用固定 variant 文件名。动画 GIF
+保留原图。历史图片可在管理后台的 `Upgrade Images` 页面逐张升级。
 
 **响应式图片示例**：
 ```html
 <picture>
-  <source srcset="https://image.yourdomain.com/photo.jpg?w=640&format=webp" 
+  <source srcset="https://image.yourdomain.com/photo_w600.webp"
           type="image/webp" media="(max-width: 768px)">
-  <source srcset="https://image.yourdomain.com/photo.jpg?w=1280&format=webp" 
+  <source srcset="https://image.yourdomain.com/photo_w1200.webp"
           type="image/webp" media="(min-width: 769px)">
   <img src="https://image.yourdomain.com/photo.jpg" alt="photo">
 </picture>

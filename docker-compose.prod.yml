@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -43,32 +41,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # 图片动态转换服务（生产环境推荐）
-  imgproxy:
-    image: darthsim/imgproxy:latest
-    ports:
-      - "8081:8080"
-    environment:
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /uploads
-      IMGPROXY_AUTO_WEBP: "true"
-      IMGPROXY_USE_ETAG: "true"
-      IMGPROXY_TTL: 2592000  # 30天缓存
-      IMGPROXY_MAX_SRC_RESOLUTION: 50  # 最大 50MP
-      IMGPROXY_JPEG_PROGRESSIVE: "true"
-      IMGPROXY_PNG_INTERLACED: "true"
-      IMGPROXY_QUALITY: 85
-      IMGPROXY_GZIP_COMPRESSION: 5
-    volumes:
-      - /data/uploads:/uploads:ro
-    networks:
-      - blog-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "imgproxy", "health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
   backup:
     image: ghcr.io/li-sky/blog-backup:latest

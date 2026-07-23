@@ -72,6 +72,47 @@ func (fs *FilesystemStorage) Save(fileHeader *multipart.FileHeader) (string, str
 	return filename, url, nil
 }
 
+// SaveVariant stores a generated WebP next to its original using a predictable
+// suffix (for example, <uuid>_w600.webp).
+func (fs *FilesystemStorage) SaveVariant(originalFilename, label string, fileHeader *multipart.FileHeader) (string, string, error) {
+	if label != "w600" && label != "w1200" {
+		return "", "", fmt.Errorf("unsupported image variant: %s", label)
+	}
+
+	originalBase := filepath.Base(originalFilename)
+	originalExt := filepath.Ext(originalBase)
+	filename := strings.TrimSuffix(originalBase, originalExt) + "_" + label + ".webp"
+	fullPath := filepath.Join(fs.BasePath, filename)
+
+	src, err := fileHeader.Open()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open image variant: %w", err)
+	}
+	defer src.Close()
+
+	temp, err := os.CreateTemp(fs.BasePath, filename+".tmp-*")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create image variant: %w", err)
+	}
+	tempName := temp.Name()
+	defer func() {
+		_ = temp.Close()
+		_ = os.Remove(tempName)
+	}()
+
+	if _, err := io.Copy(temp, src); err != nil {
+		return "", "", fmt.Errorf("failed to save image variant: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return "", "", fmt.Errorf("failed to close image variant: %w", err)
+	}
+	if err := os.Rename(tempName, fullPath); err != nil {
+		return "", "", fmt.Errorf("failed to publish image variant: %w", err)
+	}
+
+	return filename, fs.BaseURL + "/" + filename, nil
+}
+
 // Delete 从文件系统删除文件
 func (fs *FilesystemStorage) Delete(filename string) error {
 	fullPath := filepath.Join(fs.BasePath, filename)

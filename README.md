@@ -50,6 +50,12 @@ docker-compose logs -f
 curl http://localhost/api/v1/health
 ```
 
+健康接口 `GET /health` 和 `GET /api/v1/health` 不要求登录：数据库连接正常时返回
+`200 {"status":"ok"}`，连接失败或检查超时时返回 `503 {"status":"unavailable"}`。
+容器使用 `/app/blog-server healthcheck` 发起限时本机 GET；探测无需 shell、wget 或 curl，
+适用于 distroless 运行镜像。该子命令不会初始化数据库、运行迁移或启动第二个服务。
+生产 Compose 可通过 `BLOG_API_IMAGE` 固定已验证的镜像，默认仍使用 GHCR 的 `latest`。
+
 **开发环境架构**：
 ```
 http://localhost        ← Nginx (反向代理)

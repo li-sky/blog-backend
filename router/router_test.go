@@ -103,6 +103,6 @@ func TestSetupRouter_BuildsEngine(t *testing.T) {
 	settingSvc := services.NewSettingService(noopSettingRepo{})
 	imageSvc := services.NewImageService(noopImageRepo{}, noopStorageBackend{})
 
-	engine := SetupRouter(userSvc, roleSvc, postSvc, commentSvc, settingSvc, imageSvc)
+	engine := SetupRouter(userSvc, roleSvc, postSvc, commentSvc, settingSvc, imageSvc, nil)
 	require.NotNil(t, engine)
 }

@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+
 	"blog-backend/controllers"
 	"blog-backend/middlewares"
 	"blog-backend/services"
@@ -16,9 +18,11 @@ func SetupRouter(
 	commentService *services.CommentService,
 	settingService *services.SettingService,
 	imageService *services.ImageService,
+	pingDatabase func(context.Context) error,
 ) *gin.Engine {
 	r := gin.Default()
 	r.Use(middlewares.CORSMiddleware())
+	registerHealthRoutes(r, pingDatabase)
 
 	authController := controllers.NewAuthController(userService)
 	userController := controllers.NewUserController(userService)

@@ -14,4 +14,6 @@ WORKDIR /app
 ENV GIN_MODE=release
 COPY --from=build /src/blog-server /app/blog-server
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD ["/app/blog-server", "healthcheck"]
 CMD ["/app/blog-server"]

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"time"
 
 	"blog-backend/config"
+	"blog-backend/internal/healthcheck"
 	"blog-backend/models"
 	"blog-backend/repositories"
 	"blog-backend/router"
@@ -12,6 +16,16 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := healthcheck.Probe(ctx, "http://127.0.0.1:8080/health"); err != nil {
+			log.Print(err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	db := config.InitDB()
 	if db == nil {
 		log.Fatal("failed to initialize database")
@@ -56,7 +70,11 @@ func main() {
 
 	imageService := services.NewImageService(imageRepo, storageSvc)
 
-	app := router.SetupRouter(userService, roleService, postService, commentService, settingService, imageService)
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("failed to obtain database health checker")
+	}
+	app := router.SetupRouter(userService, roleService, postService, commentService, settingService, imageService, sqlDB.PingContext)
 
 	if err := app.Run(); err != nil {
 		log.Fatalf("server error: %v", err)

@@ -71,7 +71,7 @@ func TestPostService_CreatePost_SetsDefaultsAndPublishedAt(t *testing.T) {
 	})
 
 	post := &models.Post{Title: "t", Summary: "s", Body: "b", Status: "published"}
-	before := time.Now().UTC()
+	before := time.Now().UTC().Truncate(time.Microsecond)
 	err := svc.CreatePost(author, post)
 	after := time.Now().UTC()
 
@@ -80,6 +80,7 @@ func TestPostService_CreatePost_SetsDefaultsAndPublishedAt(t *testing.T) {
 	require.Equal(t, uint(7), captured.UserID)
 	require.Equal(t, "published", captured.Status)
 	require.NotNil(t, captured.PublishedAt)
+	require.Zero(t, captured.PublishedAt.Nanosecond()%1000)
 	require.True(t, captured.PublishedAt.After(before) || captured.PublishedAt.Equal(before))
 	require.True(t, captured.PublishedAt.Before(after) || captured.PublishedAt.Equal(after))
 }

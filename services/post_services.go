@@ -39,7 +39,7 @@ func (s *PostService) CreatePost(author *models.User, post *models.Post) error {
 	}
 	post.PublicationTimeKnown = true
 	post.DraftVersion = 1
-	nowDraft := time.Now().UTC()
+	nowDraft := time.Now().UTC().Truncate(time.Microsecond)
 	post.DraftUpdatedAt = &nowDraft
 	draft := postSnapshot(post)
 	post.Draft = &draft
@@ -53,7 +53,7 @@ func (s *PostService) CreatePost(author *models.User, post *models.Post) error {
 		return errors.New("permission denied")
 	}
 	if post.Status == publishedPostStatus && post.PublishedAt == nil {
-		now := time.Now().UTC()
+		now := time.Now().UTC().Truncate(time.Microsecond)
 		post.PublishedAt = &now
 	}
 	err := s.repo.Create(post)

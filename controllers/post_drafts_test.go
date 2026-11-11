@@ -102,6 +102,7 @@ func TestDraftHTTP_PublicIsolationPublishDatesConflictDiscardAndIdempotency(t *t
 	published := decodeDraft(t, draftRequest(r, "POST", path+"/publish", map[string]any{"version": draft.Version}, true))
 	require.True(t, published.PublicationTimeKnown)
 	require.NotNil(t, published.PublishedAt)
+	require.Equal(t, 0, published.PublishedAt.Nanosecond()%1000, "first publication must match PostgreSQL microsecond precision")
 	require.Nil(t, published.PublishedUpdatedAt)
 	public := draftRequest(r, "GET", path, nil, false)
 	require.Equal(t, 200, public.Code)
@@ -112,6 +113,7 @@ func TestDraftHTTP_PublicIsolationPublishDatesConflictDiscardAndIdempotency(t *t
 	require.True(t, saved.HasUnpublishedChanges)
 	require.Equal(t, *published.PublishedAt, *saved.PublishedAt)
 	require.Nil(t, saved.PublishedUpdatedAt)
+	require.Equal(t, 0, saved.UpdatedAt.Nanosecond()%1000, "draft response must match PostgreSQL microsecond precision")
 	for _, endpoint := range []string{path, "/posts"} {
 		response := draftRequest(r, "GET", endpoint, nil, false)
 		require.Equal(t, 200, response.Code)
@@ -127,6 +129,7 @@ func TestDraftHTTP_PublicIsolationPublishDatesConflictDiscardAndIdempotency(t *t
 	republished := decodeDraft(t, draftRequest(r, "POST", path+"/publish", map[string]any{"version": saved.Version}, true))
 	require.Equal(t, *published.PublishedAt, *republished.PublishedAt)
 	require.NotNil(t, republished.PublishedUpdatedAt)
+	require.Equal(t, 0, republished.PublishedUpdatedAt.Nanosecond()%1000, "publication update must match PostgreSQL microsecond precision")
 	again := decodeDraft(t, draftRequest(r, "POST", path+"/publish", map[string]any{"version": republished.Version}, true))
 	require.Equal(t, *republished.PublishedUpdatedAt, *again.PublishedUpdatedAt)
 	saved = decodeDraft(t, draftRequest(r, "PUT", path+"/draft", map[string]any{"version": again.Version, "title": "discard me", "body": ""}, true))

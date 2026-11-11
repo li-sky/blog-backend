@@ -51,7 +51,7 @@ func draftResponse(post *models.Post) *DraftResponse {
 
 func (s *PostService) persistRevision(post *models.Post, expected uint64) error {
 	post.DraftVersion = expected + 1
-	post.UpdatedAt = time.Now().UTC()
+	post.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
 	if repo, ok := s.repo.(versionedPostRepository); ok {
 		return repo.UpdateVersioned(post, expected)
 	}
@@ -80,7 +80,7 @@ func (s *PostService) SaveDraft(user *models.User, id uint, draft models.PostDra
 		return nil, ErrDraftConflict
 	}
 	post.Draft = &draft
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	post.DraftUpdatedAt = &now
 	// Never change public content or publication state while saving a draft.
 	if err = s.persistRevision(post, version); err != nil {
@@ -104,7 +104,7 @@ func (s *PostService) PublishDraft(user *models.User, id uint, version uint64) (
 		return nil, fmt.Errorf("title and body are required to publish")
 	}
 	changed := draft != postSnapshot(post)
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	if post.PublishedAt == nil && post.PublicationTimeKnown {
 		post.PublishedAt = &now
 	} else if changed || post.Status != "published" {
@@ -138,7 +138,7 @@ func (s *PostService) DiscardDraft(user *models.User, id uint, version uint64) (
 		draft = models.PostDraft{}
 	}
 	post.Draft = &draft
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	post.DraftUpdatedAt = &now
 	if err = s.persistRevision(post, version); err != nil {
 		return nil, err

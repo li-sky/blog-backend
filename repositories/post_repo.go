@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"blog-backend/services"
 	"fmt"
 
 	"blog-backend/models"
@@ -93,5 +94,30 @@ func buildPostOrder(sortBy string, desc bool) string {
 		direction = "DESC"
 	}
 
+	if column == "published_at" {
+		return fmt.Sprintf("%s %s NULLS LAST, id %s", column, direction, direction)
+	}
 	return fmt.Sprintf("%s %s", column, direction)
+}
+
+// UpdateVersioned atomically changes one author revision. A publish and an autosave
+// cannot overwrite each other: both must compare the same persisted version.
+func (r *PostRepository) UpdateVersioned(post *models.Post, expected uint64) error {
+	result := r.db.Model(&models.Post{}).Where("id = ? AND draft_version = ?", post.ID, expected).
+		Select("Title", "Summary", "Body", "Status", "PublishedAt", "PublishedUpdatedAt", "Draft", "DraftVersion", "DraftUpdatedAt", "UpdatedAt").Updates(post)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return services.ErrDraftConflict
+	}
+	return nil
+}
+
+func (r *PostRepository) GetByCreateRequest(userID uint, key string) (*models.Post, error) {
+	var post models.Post
+	if err := r.db.Where("user_id = ? AND client_request_id = ?", userID, key).First(&post).Error; err != nil {
+		return nil, err
+	}
+	return &post, nil
 }

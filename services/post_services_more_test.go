@@ -16,15 +16,16 @@ func TestPostService_UpdatePost_InvalidStatus(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestPostService_UpdatePost_SetsPublishedAtAndUnsets(t *testing.T) {
+func TestPostService_UpdatePost_DoesNotChangePublicationState(t *testing.T) {
 	editor := permUser(1, "edit_post")
 
 	existing := &models.Post{Model: gorm.Model{ID: 1}, Status: "draft"}
 	svc := NewPostService(postRepoStub{
 		getByID: func(id uint) (*models.Post, error) { return existing, nil },
 		update: func(post *models.Post) error {
-			require.Equal(t, "published", post.Status)
-			require.NotNil(t, post.PublishedAt)
+			require.Equal(t, "draft", post.Status)
+			require.Nil(t, post.PublishedAt)
+			require.NotNil(t, post.Draft)
 			return nil
 		},
 	})
@@ -37,7 +38,7 @@ func TestPostService_UpdatePost_SetsPublishedAtAndUnsets(t *testing.T) {
 			return &models.Post{Model: gorm.Model{ID: 1}, Status: "published"}, nil
 		},
 		update: func(post *models.Post) error {
-			require.Equal(t, "archived", post.Status)
+			require.Equal(t, "published", post.Status)
 			require.Nil(t, post.PublishedAt)
 			return nil
 		},
@@ -56,7 +57,7 @@ func TestPostService_PublishPost_NoOpAndUpdate(t *testing.T) {
 
 	svcUpdate := NewPostService(postRepoStub{
 		getByID: func(id uint) (*models.Post, error) {
-			return &models.Post{Model: gorm.Model{ID: id}, Status: "draft"}, nil
+			return &models.Post{Model: gorm.Model{ID: id}, Status: "draft", Title: "t", Body: "b", PublicationTimeKnown: true}, nil
 		},
 		update: func(post *models.Post) error {
 			require.Equal(t, "published", post.Status)

@@ -112,7 +112,7 @@ func TestPostController_Create_Unauthorized_BadJSON_ServiceError_Success(t *test
 
 	// service error via permission denied
 	w = httptest.NewRecorder()
-	payload, _ := json.Marshal(models.Post{Title: "t"})
+	payload, _ := json.Marshal(map[string]any{"title": "t", "body": "body", "version": 0})
 	req = httptest.NewRequest(http.MethodPost, "/posts", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	r = gin.New()
@@ -139,7 +139,7 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 		getByID: func(id uint) (*models.Post, error) {
 			return &models.Post{
 				Model:  gorm.Model{ID: id},
-				Status: "draft",
+				Status: "draft", Title: "t", Body: "body", PublicationTimeKnown: true,
 				UserID: 2,
 				User: models.User{
 					Model:    gorm.Model{ID: 2},
@@ -186,7 +186,7 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	r.GET("/posts", pc.List)
 	r.GET("/posts/manage", pc.ListManage)
 
-	payload, _ := json.Marshal(models.Post{Title: "t"})
+	payload, _ := json.Marshal(map[string]any{"title": "t", "body": "body", "version": 0})
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/posts/1", bytes.NewReader(payload))
@@ -195,9 +195,10 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	require.Equal(t, http.StatusOK, w.Code)
 
 	w = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/posts/1/publish", nil)
+	req = httptest.NewRequest(http.MethodPost, "/posts/1/publish", bytes.NewBufferString(`{"version":0}`))
+	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusNoContent, w.Code)
+	require.Equal(t, http.StatusOK, w.Code)
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodDelete, "/posts/1", nil)
@@ -292,12 +293,12 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusBadRequest, w.Code)
 
-	// service error on Update (repo get returns not found)
+	// Missing version from stale clients must fail closed
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPut, "/posts/1", bytes.NewBufferString(`{"title":"t"}`))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, http.StatusConflict, w.Code)
 
 	// Publish bad id + service error
 	r = gin.New()
@@ -317,7 +318,7 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/posts/1/publish", nil)
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, http.StatusConflict, w.Code)
 
 	// Delete bad id + service error
 	r = gin.New()

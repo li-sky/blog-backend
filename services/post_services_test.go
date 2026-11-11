@@ -60,7 +60,7 @@ func (s postRepoStub) Delete(id uint) error {
 }
 
 func TestPostService_CreatePost_SetsDefaultsAndPublishedAt(t *testing.T) {
-	author := &models.User{Model: gorm.Model{ID: 7}, Roles: []models.Role{{Permissions: []models.Permission{{Name: "create_post"}}}}}
+	author := &models.User{Model: gorm.Model{ID: 7}, Roles: []models.Role{{Permissions: []models.Permission{{Name: "create_post"}, {Name: "publish_post"}}}}}
 
 	var captured *models.Post
 	svc := NewPostService(postRepoStub{

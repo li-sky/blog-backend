@@ -4,6 +4,7 @@ import (
 	"blog-backend/models"
 	"blog-backend/services"
 	"crypto/tls"
+	"encoding/xml"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -157,3 +158,98 @@ func TestFeedController_ErrorAndGetSettingFallbackError(t *testing.T) {
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
+
+func TestFeedPublicationDatesIgnoreDraftSaves(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	first := time.Date(2025, 12, 1, 8, 30, 0, 0, time.UTC)
+	updated := first.Add(24 * time.Hour)
+	databaseSave := updated.Add(200 * time.Hour)
+	posts := []models.Post{{Model: gorm.Model{ID: 7, CreatedAt: first.Add(-72 * time.Hour), UpdatedAt: databaseSave}, Status: "published", Title: "Live title", Summary: "Live summary", Body: "Live body", PublishedAt: &first, PublishedUpdatedAt: &updated, PublicationTimeKnown: true}}
+	controller := NewFeedController(nil, services.NewSettingService(settingRepoForFeedStub{getByKey: func(key string) (*models.Setting, error) {
+		return &models.Setting{Key: key, Value: map[string]string{"site_title": "Blog", "site_url": "https://example.com", "site_description": "Description"}[key]}, nil
+	}}))
+	context, _ := gin.CreateTestContext(httptest.NewRecorder())
+	context.Request = httptest.NewRequest("GET", "https://example.com/feed/atom", nil)
+	atomBefore := controller.buildAtomFeed(context, posts)
+	rssBefore := controller.buildRSSFeed(context, posts)
+	require.Len(t, atomBefore.Entries, 1)
+	require.Equal(t, "Blog", atomBefore.Author.Name)
+	require.Equal(t, first.Format(time.RFC3339), atomBefore.Entries[0].Published)
+	require.Equal(t, updated.Format(time.RFC3339), atomBefore.Entries[0].Updated)
+	require.Equal(t, updated.Format(time.RFC3339), atomBefore.Updated)
+	require.Equal(t, first.Format(time.RFC1123Z), rssBefore.Channel.Items[0].PubDate)
+	require.Equal(t, updated.Format(time.RFC3339), rssBefore.Channel.Items[0].Updated)
+	require.Equal(t, first.Format(time.RFC1123Z), rssBefore.Channel.PubDate)
+	require.Equal(t, updated.Format(time.RFC1123Z), rssBefore.Channel.LastBuildDate)
+	// Database UpdatedAt changes during draft autosave; public XML stays identical.
+	posts[0].UpdatedAt = databaseSave.Add(24 * time.Hour)
+	require.Equal(t, atomBefore, controller.buildAtomFeed(context, posts))
+	require.Equal(t, rssBefore, controller.buildRSSFeed(context, posts))
+	atomXML, err := xml.Marshal(atomBefore)
+	require.NoError(t, err)
+	rssXML, err := xml.Marshal(rssBefore)
+	require.NoError(t, err)
+	require.NotContains(t, string(atomXML), databaseSave.Format(time.RFC3339))
+	require.Contains(t, string(rssXML), "<atom:updated>"+updated.Format(time.RFC3339)+"</atom:updated>")
+}
+
+func TestFeedFirstPublicationAndUnknownHistory(t *testing.T) {
+	first := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	posts := []models.Post{
+		{Model: gorm.Model{ID: 1, CreatedAt: first.Add(-time.Hour), UpdatedAt: first.Add(time.Hour)}, Status: "published", Title: "First", PublishedAt: &first, PublicationTimeKnown: true},
+		{Model: gorm.Model{ID: 2, CreatedAt: first.Add(-time.Hour), UpdatedAt: first.Add(time.Hour)}, Status: "published", Title: "Unknown history"},
+		{Model: gorm.Model{ID: 4}, Status: "published", Title: "Recorded publication, unknown first", PublishedAt: &first},
+		{Model: gorm.Model{ID: 3}, Status: "draft", Title: "Secret draft", Body: "Private body", PublishedAt: &first},
+	}
+	controller := NewFeedController(nil, services.NewSettingService(settingRepoForFeedStub{getByKey: func(key string) (*models.Setting, error) {
+		return &models.Setting{Key: key, Value: "https://example.com"}, nil
+	}}))
+	context, _ := gin.CreateTestContext(httptest.NewRecorder())
+	context.Request = httptest.NewRequest("GET", "https://example.com/feed/atom", nil)
+	atom := controller.buildAtomFeed(context, posts)
+	require.Len(t, atom.Entries, 2) // A recorded public event can satisfy updated without claiming it is the first publication.
+	require.Empty(t, atom.Entries[1].Published)
+	require.Equal(t, first.Format(time.RFC3339), atom.Entries[1].Updated)
+	require.Equal(t, first.Format(time.RFC3339), atom.Entries[0].Updated)
+	require.Equal(t, first.Format(time.RFC3339), atom.Entries[0].Published)
+	rss := controller.buildRSSFeed(context, posts)
+	require.Len(t, rss.Channel.Items, 3) // RSS may retain the article without optional pubDate.
+	require.Empty(t, rss.Channel.Items[0].Updated)
+	require.Empty(t, rss.Channel.Items[1].PubDate)
+	require.Empty(t, rss.Channel.Items[1].Updated)
+	require.Empty(t, rss.Channel.Items[2].PubDate)
+	atomXML, _ := xml.Marshal(atom)
+	rssXML, _ := xml.Marshal(rss)
+	require.NotContains(t, string(atomXML), "Secret draft")
+	require.NotContains(t, string(rssXML), "Secret draft")
+	require.NotContains(t, string(rssXML), "Private body")
+}
+
+func TestFeedControllersQueryOnlyPublishedByPublicationDate(t *testing.T) {
+	for _, kind := range []string{"atom", "rss"} {
+		t.Run(kind, func(t *testing.T) {
+			called := false
+			postService := services.NewPostService(postRepoForFeedStub{listByStatus: func(status string, offset, limit int, sortBy string, descending bool) ([]models.Post, int64, error) {
+				called = true
+				require.Equal(t, "published", status)
+				require.Equal(t, "published_at", sortBy)
+				require.True(t, descending)
+				require.Equal(t, 20, limit)
+				return nil, 0, nil
+			}})
+			controller := NewFeedController(postService, services.NewSettingService(settingRepoForFeedStub{}))
+			router := gin.New()
+			router.GET("/", func(c *gin.Context) {
+				if kind == "atom" {
+					controller.AtomFeed(c)
+				} else {
+					controller.RSSFeed(c)
+				}
+			})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest("GET", "https://example.com/", nil))
+			require.True(t, called)
+			require.Equal(t, http.StatusOK, response.Code)
+		})
+	}
+}

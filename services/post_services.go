@@ -26,69 +26,80 @@ func (s *PostService) CreatePost(author *models.User, post *models.Post) error {
 		return err
 	}
 	post.UserID = author.ID
+	if post.ClientRequestID != nil {
+		if len(*post.ClientRequestID) > 100 || *post.ClientRequestID == "" {
+			return errors.New("invalid client request id")
+		}
+		if repo, ok := s.repo.(createRequestRepository); ok {
+			if existing, err := repo.GetByCreateRequest(author.ID, *post.ClientRequestID); err == nil {
+				*post = *existing
+				return nil
+			}
+		}
+	}
+	post.PublicationTimeKnown = true
+	post.DraftVersion = 1
+	nowDraft := time.Now().UTC()
+	post.DraftUpdatedAt = &nowDraft
+	draft := postSnapshot(post)
+	post.Draft = &draft
 	if post.Status == "" {
 		post.Status = defaultPostStatus
 	}
 	if !isAllowedPostStatus(post.Status) {
 		return fmt.Errorf("invalid post status %q", post.Status)
 	}
+	if post.Status == publishedPostStatus && !userHasPermission(author, "publish_post") {
+		return errors.New("permission denied")
+	}
 	if post.Status == publishedPostStatus && post.PublishedAt == nil {
 		now := time.Now().UTC()
 		post.PublishedAt = &now
 	}
-	return s.repo.Create(post)
+	err := s.repo.Create(post)
+	if err != nil && post.ClientRequestID != nil {
+		if repo, ok := s.repo.(createRequestRepository); ok {
+			if existing, lookupErr := repo.GetByCreateRequest(author.ID, *post.ClientRequestID); lookupErr == nil {
+				*post = *existing
+				return nil
+			}
+		}
+	}
+	return err
 }
 
+// UpdatePost remains a compatibility endpoint for older authoring clients.
+// Its payload is always an editing draft, including status:"draft" from old UIs.
 func (s *PostService) UpdatePost(editor *models.User, updated *models.Post) error {
-	if !userHasPermission(editor, "edit_post") {
-		return errors.New("permission denied")
-	}
 	if updated == nil || updated.ID == 0 {
 		return errors.New("post id is required")
-	}
-	if err := validatePostInput(updated); err != nil {
-		return err
 	}
 	if updated.Status != "" && !isAllowedPostStatus(updated.Status) {
 		return fmt.Errorf("invalid post status %q", updated.Status)
 	}
-	existing, err := s.repo.GetByID(updated.ID)
+	post, err := s.GetPost(updated.ID)
 	if err != nil {
 		return err
 	}
-	existing.Title = updated.Title
-	existing.Summary = updated.Summary
-	existing.Body = updated.Body
-	if updated.Status != "" {
-		existing.Status = updated.Status
-		if updated.Status == publishedPostStatus {
-			now := time.Now().UTC()
-			existing.PublishedAt = &now
-		} else {
-			existing.PublishedAt = nil
-		}
-	}
-	return s.repo.Update(existing)
+	_, err = s.SaveDraft(editor, updated.ID, postSnapshot(updated), post.DraftVersion)
+	return err
 }
 
+// PublishPost supports legacy callers without a version. New clients use
+// PublishDraft to reject concurrent changes explicitly.
 func (s *PostService) PublishPost(editor *models.User, postID uint) error {
 	if !userHasPermission(editor, "publish_post") {
 		return errors.New("permission denied")
 	}
-	if postID == 0 {
-		return errors.New("post id is required")
-	}
-	post, err := s.repo.GetByID(postID)
+	post, err := s.GetPost(postID)
 	if err != nil {
 		return err
 	}
-	if post.Status == publishedPostStatus {
+	if post.Status == "published" && post.Draft == nil {
 		return nil
 	}
-	now := time.Now().UTC()
-	post.Status = publishedPostStatus
-	post.PublishedAt = &now
-	return s.repo.Update(post)
+	_, err = s.PublishDraft(editor, postID, post.DraftVersion)
+	return err
 }
 
 func (s *PostService) GetPost(id uint) (*models.Post, error) {

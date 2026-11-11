@@ -25,7 +25,7 @@ func NewFeedController(postService *services.PostService, settingService *servic
 
 // AtomFeed generates an Atom 1.0 XML feed for published posts.
 func (fc *FeedController) AtomFeed(c *gin.Context) {
-	posts, _, err := fc.postService.ListPublishedPosts(0, 20, "created_at", true)
+	posts, _, err := fc.postService.ListPublishedPosts(0, 20, "published_at", true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -37,7 +37,7 @@ func (fc *FeedController) AtomFeed(c *gin.Context) {
 
 // RSSFeed generates an RSS 2.0 XML feed for published posts.
 func (fc *FeedController) RSSFeed(c *gin.Context) {
-	posts, _, err := fc.postService.ListPublishedPosts(0, 20, "created_at", true)
+	posts, _, err := fc.postService.ListPublishedPosts(0, 20, "published_at", true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -57,26 +57,37 @@ func (fc *FeedController) buildAtomFeed(c *gin.Context, posts []models.Post) Ato
 		XMLName: xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "feed"},
 		Title:   siteTitle,
 		ID:      siteURL,
-		Updated: time.Now().UTC().Format(time.RFC3339),
+		Updated: latestPublicEvent(posts).Format(time.RFC3339),
 		Links: []AtomLink{
 			{Rel: "self", Href: siteURL + "/feed/atom", Type: "application/atom+xml"},
 			{Rel: "alternate", Href: siteURL, Type: "text/html"},
 		},
 		Subtitle: siteDesc,
+		Author:   AtomAuthor{Name: siteTitle},
 	}
 
 	for _, post := range posts {
+		if post.Status != "published" {
+			continue
+		}
+		updated := publicPostUpdatedAt(post)
+		// Atom requires entry.updated. An old PublishedAt may still represent a
+		// recorded public event, even when its being the first publication is unknown.
+		// Database creation/save times are never used as public-event timestamps.
+		if updated == nil {
+			continue
+		}
 		postURL := fc.postURL(siteURL, post.ID)
 		entry := AtomEntry{
 			Title:   post.Title,
 			ID:      postURL,
-			Updated: post.UpdatedAt.Format(time.RFC3339),
+			Updated: updated.UTC().Format(time.RFC3339),
 			Link:    AtomLink{Rel: "alternate", Href: postURL, Type: "text/html"},
 			Summary: post.Summary,
 			Content: AtomContent{Type: "html", Content: post.Body},
 		}
-		if post.PublishedAt != nil {
-			entry.Published = post.PublishedAt.Format(time.RFC3339)
+		if post.PublicationTimeKnown && validPublicTime(post.PublishedAt) {
+			entry.Published = post.PublishedAt.UTC().Format(time.RFC3339)
 		}
 		feed.Entries = append(feed.Entries, entry)
 	}
@@ -91,15 +102,19 @@ func (fc *FeedController) buildRSSFeed(c *gin.Context, posts []models.Post) RSSF
 	siteDesc := fc.getSetting("site_description", "A blog about technology and life")
 
 	channel := RSSChannel{
-		Title:       siteTitle,
-		Link:        siteURL,
-		Description: siteDesc,
-		Language:    "zh-cn",
-		PubDate:     time.Now().UTC().Format(time.RFC1123Z),
-		AtomLink:    RSSAtomLink{Href: siteURL + "/feed/rss", Rel: "self", Type: "application/rss+xml"},
+		Title:         siteTitle,
+		Link:          siteURL,
+		Description:   siteDesc,
+		Language:      "zh-cn",
+		PubDate:       latestFirstPublication(posts),
+		LastBuildDate: latestRSSPublicEvent(posts),
+		AtomLink:      RSSAtomLink{Href: siteURL + "/feed/rss", Rel: "self", Type: "application/rss+xml"},
 	}
 
 	for _, post := range posts {
+		if post.Status != "published" {
+			continue
+		}
 		postURL := fc.postURL(siteURL, post.ID)
 		item := RSSItem{
 			Title:       post.Title,
@@ -107,8 +122,11 @@ func (fc *FeedController) buildRSSFeed(c *gin.Context, posts []models.Post) RSSF
 			Description: post.Summary,
 			GUID:        RSSGUID{IsPermaLink: true, Value: postURL},
 		}
-		if post.PublishedAt != nil {
-			item.PubDate = post.PublishedAt.Format(time.RFC1123Z)
+		if post.PublicationTimeKnown && validPublicTime(post.PublishedAt) {
+			item.PubDate = post.PublishedAt.UTC().Format(time.RFC1123Z)
+		}
+		if validPublicTime(post.PublishedUpdatedAt) && (!validPublicTime(post.PublishedAt) || post.PublishedUpdatedAt.After(*post.PublishedAt)) {
+			item.Updated = post.PublishedUpdatedAt.UTC().Format(time.RFC3339)
 		}
 		channel.Items = append(channel.Items, item)
 	}
@@ -119,6 +137,58 @@ func (fc *FeedController) buildRSSFeed(c *gin.Context, posts []models.Post) RSSF
 		AtomNS:  "http://www.w3.org/2005/Atom",
 		Channel: channel,
 	}
+}
+
+func validPublicTime(value *time.Time) bool { return value != nil && !value.IsZero() }
+
+func publicPostUpdatedAt(post models.Post) *time.Time {
+	if validPublicTime(post.PublishedUpdatedAt) && (!validPublicTime(post.PublishedAt) || post.PublishedUpdatedAt.After(*post.PublishedAt)) {
+		return post.PublishedUpdatedAt
+	}
+	if validPublicTime(post.PublishedAt) {
+		return post.PublishedAt
+	}
+	return nil
+}
+
+func latestKnownPublicEvent(posts []models.Post) *time.Time {
+	var latest *time.Time
+	for _, post := range posts {
+		if post.Status != "published" {
+			continue
+		}
+		if timestamp := publicPostUpdatedAt(post); timestamp != nil && (latest == nil || timestamp.After(*latest)) {
+			latest = timestamp
+		}
+	}
+	return latest
+}
+
+func latestPublicEvent(posts []models.Post) time.Time {
+	if latest := latestKnownPublicEvent(posts); latest != nil {
+		return latest.UTC()
+	}
+	// Atom still requires feed.updated for an empty feed. This is the generated
+	// representation's timestamp, never an inferred article publication date.
+	return time.Now().UTC()
+}
+func latestRSSPublicEvent(posts []models.Post) string {
+	if latest := latestKnownPublicEvent(posts); latest != nil {
+		return latest.UTC().Format(time.RFC1123Z)
+	}
+	return ""
+}
+func latestFirstPublication(posts []models.Post) string {
+	var latest *time.Time
+	for _, post := range posts {
+		if post.Status == "published" && post.PublicationTimeKnown && validPublicTime(post.PublishedAt) && (latest == nil || post.PublishedAt.After(*latest)) {
+			latest = post.PublishedAt
+		}
+	}
+	if latest != nil {
+		return latest.UTC().Format(time.RFC1123Z)
+	}
+	return ""
 }
 
 func (fc *FeedController) getSetting(key, defaultVal string) string {
@@ -157,6 +227,11 @@ type AtomFeed struct {
 	Links    []AtomLink  `xml:"link"`
 	Subtitle string      `xml:"subtitle,omitempty"`
 	Entries  []AtomEntry `xml:"entry"`
+	Author   AtomAuthor  `xml:"author"`
+}
+
+type AtomAuthor struct {
+	Name string `xml:"name"`
 }
 
 type AtomLink struct {
@@ -189,13 +264,14 @@ type RSSFeed struct {
 }
 
 type RSSChannel struct {
-	Title       string      `xml:"title"`
-	Link        string      `xml:"link"`
-	Description string      `xml:"description"`
-	Language    string      `xml:"language,omitempty"`
-	PubDate     string      `xml:"pubDate,omitempty"`
-	AtomLink    RSSAtomLink `xml:"atom:link"`
-	Items       []RSSItem   `xml:"item"`
+	Title         string      `xml:"title"`
+	Link          string      `xml:"link"`
+	Description   string      `xml:"description"`
+	Language      string      `xml:"language,omitempty"`
+	PubDate       string      `xml:"pubDate,omitempty"`
+	LastBuildDate string      `xml:"lastBuildDate,omitempty"`
+	AtomLink      RSSAtomLink `xml:"atom:link"`
+	Items         []RSSItem   `xml:"item"`
 }
 
 type RSSAtomLink struct {
@@ -209,6 +285,7 @@ type RSSItem struct {
 	Link        string  `xml:"link"`
 	Description string  `xml:"description"`
 	PubDate     string  `xml:"pubDate,omitempty"`
+	Updated     string  `xml:"atom:updated,omitempty"`
 	GUID        RSSGUID `xml:"guid"`
 }
 

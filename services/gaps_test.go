@@ -175,7 +175,7 @@ func TestPostService_CreateUpdatePublish_Branches(t *testing.T) {
 	require.Error(t, err)
 
 	p := &models.Post{Title: "t", Summary: "s", Body: "b", Status: "published"}
-	err = svc.CreatePost(controllerUserForService("create_post"), p)
+	err = svc.CreatePost(controllerUserForService("create_post", "publish_post"), p)
 	require.NoError(t, err)
 	require.NotNil(t, p.PublishedAt)
 
@@ -192,8 +192,9 @@ func TestPostService_CreateUpdatePublish_Branches(t *testing.T) {
 	svc2 := NewPostService(postRepoGapStub{getByID: func(id uint) (*models.Post, error) { return existing, nil }, update: func(post *models.Post) error { return nil }})
 	err = svc2.UpdatePost(controllerUserForService("edit_post"), &models.Post{Model: gorm.Model{ID: 2}, Title: "x", Status: "published"})
 	require.NoError(t, err)
-	require.Equal(t, "published", existing.Status)
-	require.NotNil(t, existing.PublishedAt)
+	require.Equal(t, "draft", existing.Status)
+	require.Nil(t, existing.PublishedAt)
+	require.Equal(t, "x", existing.Draft.Title)
 
 	// PublishPost branches
 	err = svc2.PublishPost(nil, 1)

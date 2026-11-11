@@ -222,6 +222,7 @@ func TestPostController_Update_Publish_Delete_Get_List_ListManage(t *testing.T) 
 	req = httptest.NewRequest(http.MethodGet, "/posts?limit=1&offset=0&sort=created_at&order=desc", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
 
 	var listPayload map[string]any
 	listPayload = map[string]any{}
@@ -359,6 +360,7 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/posts", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
 
 	// ListManage unauthorized + forbidden
 	r = gin.New()

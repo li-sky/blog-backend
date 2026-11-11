@@ -101,12 +101,14 @@ func TestFeedController_AtomAndRSS(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Contains(t, w.Body.String(), "<feed")
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/feed/rss", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Contains(t, w.Body.String(), "<rss")
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
 
 	// cover postURL helper directly
 	require.Contains(t, fc.postURL("https://x", 9), "/post/9")
@@ -137,11 +139,13 @@ func TestFeedController_ErrorAndGetSettingFallbackError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/feed/atom", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/feed/rss", nil)
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
 
 	// cover getSetting fallback returning default when upsert fails
 	w2 := httptest.NewRecorder()

@@ -179,6 +179,7 @@ func (pc *PostController) Get(c *gin.Context) {
 
 // List handles GET /posts.
 func (pc *PostController) List(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-store")
 	limit, offset := paginationParams(c)
 	sortBy := c.DefaultQuery("sort", "published_at")
 	desc := strings.EqualFold(c.DefaultQuery("order", "desc"), "desc")

@@ -95,7 +95,7 @@ func buildPostOrder(sortBy string, desc bool) string {
 	}
 
 	if column == "published_at" {
-		return fmt.Sprintf("%s %s NULLS LAST, id %s", column, direction, direction)
+		return fmt.Sprintf("COALESCE(published_at, published_updated_at) %s NULLS LAST, id %s", direction, direction)
 	}
 	return fmt.Sprintf("%s %s", column, direction)
 }

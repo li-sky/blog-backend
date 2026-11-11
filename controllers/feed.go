@@ -25,6 +25,7 @@ func NewFeedController(postService *services.PostService, settingService *servic
 
 // AtomFeed generates an Atom 1.0 XML feed for published posts.
 func (fc *FeedController) AtomFeed(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-store")
 	posts, _, err := fc.postService.ListPublishedPosts(0, 20, "published_at", true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -37,6 +38,7 @@ func (fc *FeedController) AtomFeed(c *gin.Context) {
 
 // RSSFeed generates an RSS 2.0 XML feed for published posts.
 func (fc *FeedController) RSSFeed(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-store")
 	posts, _, err := fc.postService.ListPublishedPosts(0, 20, "published_at", true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

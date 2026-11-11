@@ -16,5 +16,5 @@ func TestBuildPostOrder_Defaults(t *testing.T) {
 
 func TestBuildPostOrder_AllowsKnownColumns(t *testing.T) {
 	require.Equal(t, "title ASC", buildPostOrder("title", false))
-	require.Equal(t, "published_at DESC NULLS LAST, id DESC", buildPostOrder("published_at", true))
+	require.Equal(t, "COALESCE(published_at, published_updated_at) DESC NULLS LAST, id DESC", buildPostOrder("published_at", true))
 }

@@ -117,3 +117,22 @@ func TestMetadataTransportAndRedirectPolicy(t *testing.T) {
 		t.Fatal("allowed fourth redirect")
 	}
 }
+
+func TestMetadataDescription(t *testing.T) {
+	base, _ := url.Parse("https://example.com/page")
+	for _, tc := range []struct{ name, html, want string }{
+		{"Open Graph preferred", `<head><meta name="description" content="Default description"><meta property="og:description" content=" OG   中文 &amp; 摘要 "></head>`, "OG 中文 & 摘要"},
+		{"standard fallback", `<head><meta name="DESCRIPTION" content=" 普通   页面摘要 "></head>`, "普通 页面摘要"},
+		{"empty OG fallback", `<head><meta name="description" content="Default description"><meta property="og:description" content="   "></head>`, "Default description"},
+		{"no description", `<head><title>Example</title></head>`, ""},
+		{"ignore body metadata", `<head></head><body><meta name="description" content="Ignored">`, ""},
+		{"character limit", `<head><meta name="description" content="` + strings.Repeat("中", 1001) + `"></head>`, strings.Repeat("中", 1000)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := parseLinkMetadata(strings.NewReader(tc.html), base)
+			if result.Description != tc.want {
+				t.Fatalf("unexpected description %q", result.Description)
+			}
+		})
+	}
+}

@@ -197,6 +197,6 @@ MIT
 
 ## 链接卡片 metadata
 
-`GET /api/v1/links/metadata?url=<encoded URL>` 供编辑器读取网页标题和 favicon，要求 JWT 与 `upload_image` 权限。返回 `url`、`title`、`icon`；无法读取时返回可供手动编辑回退的错误。阅读页使用 Markdown 中已保存的图标信息，不会在每次浏览时调用抓取接口。
+`GET /api/v1/links/metadata?url=<encoded URL>` 供编辑器读取网页标题、摘要和 favicon，要求 JWT 与 `upload_image` 权限。返回 `url`、`title`、`description`、`icon`；摘要优先读取 `og:description`，其次 `meta name="description"`，压缩空白并限制为 1000 个字符。无法读取时返回可供手动编辑回退的错误。阅读页使用 Markdown 中已保存的图标信息，不会在每次浏览时调用抓取接口。
 
 请求仅限公开 HTTP/HTTPS 标准端口，不转发用户 cookie/token；限制重定向、超时、响应大小与并发，DNS 校验后直连已检查的地址，禁止访问本机和私网。安全回归测试无需外网。

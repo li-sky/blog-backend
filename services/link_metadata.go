@@ -16,9 +16,10 @@ import (
 )
 
 type LinkMetadata struct {
-	URL   string `json:"url"`
-	Title string `json:"title"`
-	Icon  string `json:"icon"`
+	Description string `json:"description"`
+	URL         string `json:"url"`
+	Title       string `json:"title"`
+	Icon        string `json:"icon"`
 }
 
 // Only public HTTP(S) destinations on standard ports are eligible for previews.
@@ -164,7 +165,7 @@ func (r *metadataResponseReader) Read(p []byte) (int, error) {
 func parseLinkMetadata(reader io.Reader, base *url.URL) *LinkMetadata {
 	result := &LinkMetadata{URL: base.String(), Title: base.Hostname(), Icon: base.ResolveReference(&url.URL{Path: "/favicon.ico"}).String()}
 	tokenizer := html.NewTokenizer(reader)
-	var title, ogTitle, icon, appleIcon string
+	var title, ogTitle, icon, appleIcon, description, ogDescription string
 	inTitle := false
 	for {
 		tokenType := tokenizer.Next()
@@ -185,6 +186,13 @@ func parseLinkMetadata(reader io.Reader, base *url.URL) *LinkMetadata {
 			}
 			if token.Data == "meta" && (strings.EqualFold(attrs["property"], "og:title") || strings.EqualFold(attrs["name"], "og:title")) {
 				ogTitle = attrs["content"]
+			}
+			if token.Data == "meta" {
+				if strings.EqualFold(attrs["property"], "og:description") || strings.EqualFold(attrs["name"], "og:description") {
+					ogDescription = attrs["content"]
+				} else if strings.EqualFold(attrs["name"], "description") {
+					description = attrs["content"]
+				}
 			}
 			if token.Data == "link" {
 				rels := strings.Fields(strings.ToLower(attrs["rel"]))
@@ -215,6 +223,12 @@ func parseLinkMetadata(reader io.Reader, base *url.URL) *LinkMetadata {
 	if title != "" {
 		result.Title = string([]rune(title)[:min(len([]rune(title)), 300)])
 	}
+	if strings.TrimSpace(ogDescription) != "" {
+		description = ogDescription
+	}
+	description = strings.Join(strings.Fields(description), " ")
+	runes := []rune(description)
+	result.Description = string(runes[:min(len(runes), 1000)])
 	if icon == "" {
 		icon = appleIcon
 	}

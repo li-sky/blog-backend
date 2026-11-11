@@ -96,6 +96,10 @@ func SetupRouter(
 	images.PUT("/:id", imageController.UpdateImage)
 	images.DELETE("/:id", imageController.DeleteImage)
 
+	files := controllers.NewFileController()
+	api.POST("/files/upload", middlewares.AuthMiddleware(userService), files.Upload)
+	api.GET("/files/:id/download", files.Download)
+
 	feed := r.Group("/feed")
 	feed.GET("/atom", feedController.AtomFeed)
 	feed.GET("/rss", feedController.RSSFeed)

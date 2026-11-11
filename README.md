@@ -184,3 +184,13 @@ STORAGE_FS_BASE_URL=https://image.yourdomain.com  # 访问 URL
 MIT
 
 > 说明：覆盖率 badge 需要启用 Codecov（如果仓库是私有仓库，请在 GitHub Secrets 配置 `CODECOV_TOKEN`）。
+
+## 附件接口（2026-11-11）
+
+- `POST /api/v1/files/upload`：JWT 认证并要求既有 `upload_image` 权限；multipart 字段 `file`，单文件最大 100 MiB。返回 `name`、`size`、`url`。
+- `GET /api/v1/files/:id/download`：公开下载，UUID 标识，保留原始文件名，返回 `Content-Disposition: attachment`、`application/octet-stream` 和 `nosniff`。
+- 存储复用 `STORAGE_FS_BASE_PATH`（默认 `./uploads`）下的 `attachments/<uuid>/content` 与 `metadata.json`，无需数据库迁移。备份/恢复需包含整个 attachments 目录。
+- 附件上传后即为持有链接可访问的公开资源，与文章是否发布无关；当前未提供附件管理/删除界面。
+- 反向代理上传体积限制至少 101 MiB；生产示例已有 160M。前后端需一起部署。
+
+回归验证：`go test ./...`，附件测试覆盖上传鉴权、权限、中文文件名、下载字节一致性、安全响应头、非法及不存在的 UUID。

@@ -60,3 +60,20 @@ func TestBoundedFullImageDimensionsAndLegacyFullRemainCompatible(t *testing.T) {
 	require.False(t, matchesVariantDimensions(600, 600, 10000, 20000, 600))
 	require.False(t, matchesVariantDimensions(1, 1, 0, 0, 0))
 }
+
+func TestSummaryCoverReferencesMatchOnlyFirstCoverURL(t *testing.T) {
+	match := newImageURLMatcher(&models.Image{Filename: "asset.jpg", URL: "https://skyli.xyz/current/asset.jpg", WebP600Filename: "asset_w600.webp", WebP600URL: "https://skyli.xyz/current/asset_w600.webp"})
+	for _, tc := range []struct {
+		name, summary string
+		used          bool
+	}{
+		{"original cover", "Cover %https://skyli.xyz/current/asset.jpg% description", true},
+		{"relative variant cover", "%/images/asset_w600.webp?version=1#cover%", true},
+		{"external filename", "%https://outside.test/images/asset.jpg%", false},
+		{"later token is not cover", "%https://outside.test/other.jpg% %/images/asset.jpg%", false},
+		{"plain URL is not cover", "https://skyli.xyz/current/asset.jpg", false},
+		{"different filename", "%/images/prefix-asset.jpg%", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.used, match.summaryCoverReferencedBy(tc.summary)) })
+	}
+}

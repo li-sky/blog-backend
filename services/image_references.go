@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -50,17 +51,17 @@ func (s *ImageService) imageReferences(image *models.Image) ([]ImageReference, e
 	matcher := newImageURLMatcher(image)
 	references := make([]ImageReference, 0)
 	for _, post := range posts {
-		bodyReferenced := matcher.referencedBy(post.Body)
-		if bodyReferenced {
+		liveReferenced := matcher.referencedBy(post.Body) || matcher.summaryCoverReferencedBy(post.Summary)
+		if liveReferenced {
 			location := "draft"
 			if post.Status == "published" {
 				location = "published"
 			}
 			references = append(references, ImageReference{PostID: post.ID, Title: post.Title, Status: post.Status, Location: location, authorID: post.UserID})
 		}
-		if post.Draft != nil && matcher.referencedBy(post.Draft.Body) {
-			// One entry per article location, not per repeated occurrence in the body.
-			if post.Status != "published" && bodyReferenced {
+		if post.Draft != nil && (matcher.referencedBy(post.Draft.Body) || matcher.summaryCoverReferencedBy(post.Draft.Summary)) {
+			// One entry per article location, including body and summary cover references.
+			if post.Status != "published" && liveReferenced {
 				continue
 			}
 			references = append(references, ImageReference{PostID: post.ID, Title: post.Draft.Title, Status: post.Status, Location: "draft", authorID: post.UserID})
@@ -102,6 +103,15 @@ func (s *ImageService) GetImageReferences(user *models.User, id uint) (ImageRefe
 type imageURLMatcher struct {
 	paths map[string]struct{}
 	hosts map[string]struct{}
+}
+
+var summaryCoverPattern = regexp.MustCompile(`%([^%]+)%`)
+
+func (m imageURLMatcher) summaryCoverReferencedBy(summary string) bool {
+	// PostCard renders only the first %URL% token as its cover (with a derived
+	// preview variant), so later tokens and plain summary text are not references.
+	match := summaryCoverPattern.FindStringSubmatch(summary)
+	return len(match) == 2 && m.matches(match[1])
 }
 
 func canonicalImageHost(u *url.URL) string {

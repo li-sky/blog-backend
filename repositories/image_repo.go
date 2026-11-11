@@ -65,6 +65,6 @@ func (r *ImageRepo) GetByFilename(filename string) (*models.Image, error) {
 // exposing article bodies through the image management API.
 func (r *ImageRepo) ListImageReferencePosts() ([]models.Post, error) {
 	var posts []models.Post
-	err := r.DB.Select("id", "title", "status", "body", "draft", "user_id").Order("id ASC").Find(&posts).Error
+	err := r.DB.Select("id", "title", "summary", "status", "body", "draft", "user_id").Order("id ASC").Find(&posts).Error
 	return posts, err
 }

@@ -4,6 +4,7 @@ import (
 	"blog-backend/models"
 	"blog-backend/repositories"
 	"blog-backend/services"
+	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"path/filepath"
@@ -121,4 +122,51 @@ func TestImageReferenceLookupFailsClosedAndExternalNamesDoNotBlockDeletion(t *te
 	response = imageReferenceRequest(router, "DELETE", path, "owner")
 	require.Equal(t, 500, response.Code)
 	require.Empty(t, *deleted, "query errors must not become a permission to delete files")
+}
+
+func TestSummaryOnlyCoversPreventDeletionWithoutDisclosingDraftTitles(t *testing.T) {
+	router, db, deleted := imageReferenceTestApp(t)
+	image := referenceTestImage()
+	require.NoError(t, db.Create(image).Error)
+	post := models.Post{Title: "Published cover", Summary: "Cover %https://skyli.xyz/current/asset.jpg%", Status: "published", UserID: 4,
+		Draft: &models.PostDraft{Title: "SECRET draft cover", Summary: "%/images/asset_w600.webp?cover=1%"}}
+	require.NoError(t, db.Create(&post).Error)
+	imagePath := fmt.Sprintf("/images/%d", image.ID)
+	admin := imageReferenceRequest(router, "GET", imagePath+"/references", "admin")
+	require.Equal(t, 200, admin.Code, admin.Body.String())
+	var refs services.ImageReferencesResponse
+	require.NoError(t, json.Unmarshal(admin.Body.Bytes(), &refs))
+	require.Equal(t, 2, refs.Total)
+	require.Len(t, refs.Items, 2)
+	require.Equal(t, "published", refs.Items[0].Location)
+	require.Equal(t, "draft", refs.Items[1].Location)
+	require.Equal(t, "SECRET draft cover", refs.Items[1].Title)
+	owner := imageReferenceRequest(router, "GET", imagePath+"/references", "owner")
+	require.Equal(t, 200, owner.Code)
+	require.NotContains(t, owner.Body.String(), "SECRET")
+	require.NoError(t, json.Unmarshal(owner.Body.Bytes(), &refs))
+	require.Equal(t, 2, refs.Total)
+	require.Len(t, refs.Items, 1)
+	response := imageReferenceRequest(router, "DELETE", imagePath, "owner")
+	require.Equal(t, 409, response.Code, response.Body.String())
+	require.Contains(t, response.Body.String(), "image_in_use")
+	require.NotContains(t, response.Body.String(), "SECRET")
+	require.Empty(t, *deleted)
+	// Repeating the same cover in each body's snapshot must not duplicate locations.
+	post.Body = "![image](/images/asset.jpg)"
+	post.Draft.Body = "![image](/images/asset_w600.webp)"
+	require.NoError(t, db.Save(&post).Error)
+	admin = imageReferenceRequest(router, "GET", imagePath+"/references", "admin")
+	require.NoError(t, json.Unmarshal(admin.Body.Bytes(), &refs))
+	require.Equal(t, 2, refs.Total)
+	require.Len(t, refs.Items, 2)
+	// A private draft cover alone still blocks deletion without exposing its title.
+	post.Summary, post.Body, post.Draft.Body = "", "", ""
+	require.NoError(t, db.Save(&post).Error)
+	response = imageReferenceRequest(router, "DELETE", imagePath, "owner")
+	require.Equal(t, 409, response.Code, response.Body.String())
+	require.Contains(t, response.Body.String(), `"total":1`)
+	require.Contains(t, response.Body.String(), `"items":[]`)
+	require.NotContains(t, response.Body.String(), "SECRET")
+	require.Empty(t, *deleted)
 }

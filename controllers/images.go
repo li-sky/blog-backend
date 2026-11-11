@@ -231,9 +231,47 @@ func (ctrl *ImageController) DeleteImage(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
 			return
 		}
+		if strings.Contains(err.Error(), "permission denied") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		var inUse *services.ImageInUseError
+		if errors.As(err, &inUse) {
+			c.Header("Cache-Control", "private, no-store")
+			c.JSON(http.StatusConflict, gin.H{"error": "image_in_use", "message": "图片仍被文章或草稿引用，请先移除引用", "references": inUse.References, "items": inUse.References.Items, "total": inUse.References.Total})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete image"})
 		return
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (ctrl *ImageController) GetImageReferences(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-store")
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid image id"})
+		return
+	}
+	references, err := ctrl.imageService.GetImageReferences(user, uint(id))
+	if err != nil {
+		if errors.Is(err, services.ErrImageNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "image not found"})
+			return
+		}
+		if strings.Contains(err.Error(), "permission denied") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find image references"})
+		return
+	}
+	c.JSON(http.StatusOK, references)
 }

@@ -323,8 +323,16 @@ func (s *ImageService) DeleteImage(user *models.User, id uint) error {
 	}
 
 	// 权限检查：必须是图片所有者或拥有 delete_any_image 权限
-	if image.UserID != user.ID && !userHasPermission(user, "delete_any_image") {
+	if user == nil || (image.UserID != user.ID && !userHasPermission(user, "delete_any_image")) {
 		return errors.New("permission denied: can only delete your own images")
+	}
+
+	references, err := s.imageReferences(image)
+	if err != nil {
+		return fmt.Errorf("failed to check image references: %w", err)
+	}
+	if len(references) > 0 {
+		return &ImageInUseError{References: visibleImageReferences(user, references)}
 	}
 
 	// 先删除文件
@@ -413,10 +421,19 @@ func (s *ImageService) saveVariant(backend storage.VariantStorageBackend, image 
 }
 
 func matchesVariantDimensions(width, height, originalWidth, originalHeight, targetWidth int) bool {
-	expectedWidth := targetWidth
-	if expectedWidth <= 0 || originalWidth < expectedWidth {
-		expectedWidth = originalWidth
+	if originalWidth <= 0 || originalHeight <= 0 {
+		return false
 	}
+	if targetWidth <= 0 {
+		if width == originalWidth && int(math.Abs(float64(height-originalHeight))) <= 1 {
+			return true
+		}
+		scale := math.Min(1, math.Min(8192/float64(max(originalWidth, originalHeight)), math.Sqrt(16000000/(float64(originalWidth)*float64(originalHeight)))))
+		expectedWidth := max(1, int(math.Floor(float64(originalWidth)*scale)))
+		expectedHeight := max(1, int(math.Floor(float64(originalHeight)*scale)))
+		return width == expectedWidth && height == expectedHeight
+	}
+	expectedWidth := min(targetWidth, originalWidth)
 	expectedHeight := int(math.Round(float64(originalHeight) * float64(expectedWidth) / float64(originalWidth)))
 	return width == expectedWidth && int(math.Abs(float64(height-expectedHeight))) <= 1
 }

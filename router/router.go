@@ -96,6 +96,7 @@ func SetupRouter(
 	images.GET("", imageController.ListImages)
 	images.PUT("/:id/variants", imageController.UpdateImageVariants)
 	images.GET("/:id", imageController.GetImage)
+	images.GET("/:id/references", imageController.GetImageReferences)
 	images.PUT("/:id", imageController.UpdateImage)
 	images.DELETE("/:id", imageController.DeleteImage)
 

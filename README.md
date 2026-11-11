@@ -194,3 +194,9 @@ MIT
 - 反向代理上传体积限制至少 101 MiB；生产示例已有 160M。前后端需一起部署。
 
 回归验证：`go test ./...`，附件测试覆盖上传鉴权、权限、中文文件名、下载字节一致性、安全响应头、非法及不存在的 UUID。
+
+## 链接卡片 metadata
+
+`GET /api/v1/links/metadata?url=<encoded URL>` 供编辑器读取网页标题和 favicon，要求 JWT 与 `upload_image` 权限。返回 `url`、`title`、`icon`；无法读取时返回可供手动编辑回退的错误。阅读页使用 Markdown 中已保存的图标信息，不会在每次浏览时调用抓取接口。
+
+请求仅限公开 HTTP/HTTPS 标准端口，不转发用户 cookie/token；限制重定向、超时、响应大小与并发，DNS 校验后直连已检查的地址，禁止访问本机和私网。安全回归测试无需外网。

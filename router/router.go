@@ -96,6 +96,8 @@ func SetupRouter(
 	images.PUT("/:id", imageController.UpdateImage)
 	images.DELETE("/:id", imageController.DeleteImage)
 
+	api.GET("/links/metadata", middlewares.AuthMiddleware(userService), controllers.LinkMetadata)
+
 	files := controllers.NewFileController()
 	api.POST("/files/upload", middlewares.AuthMiddleware(userService), files.Upload)
 	api.GET("/files/:id/download", files.Download)

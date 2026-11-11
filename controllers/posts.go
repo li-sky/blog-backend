@@ -4,7 +4,10 @@ import (
 	"blog-backend/middlewares"
 	"blog-backend/models"
 	"blog-backend/services"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -52,7 +55,43 @@ func (pc *PostController) Create(c *gin.Context) {
 }
 
 // Update handles PUT /posts/:id.
-func (pc *PostController) Update(c *gin.Context) { pc.SaveDraft(c) }
+func (pc *PostController) Update(c *gin.Context) {
+	c.Header("Cache-Control", "private, no-store")
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		c.JSON(401, gin.H{"error": "unauthorized"})
+		return
+	}
+	id, err := parseUintParam(c, "postID")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	var input struct {
+		models.Post
+		Version json.RawMessage `json:"version"`
+	}
+	if err = c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "invalid post"})
+		return
+	}
+	input.Post.ID = id
+	expected, parseErr := optionalDraftVersion(input.Version)
+	if parseErr != nil {
+		c.JSON(400, gin.H{"error": parseErr.Error()})
+		return
+	}
+	if expected != nil {
+		err = pc.service.UpdatePostWithVersion(user, &input.Post, *expected)
+	} else {
+		err = pc.service.UpdatePost(user, &input.Post)
+	}
+	if err != nil {
+		pc.draftError(c, user, id, err)
+		return
+	}
+	c.JSON(200, toPostDetailResponse(&input.Post))
+}
 
 // Publish handles POST /posts/:id/publish.
 func (pc *PostController) Publish(c *gin.Context) {
@@ -68,13 +107,26 @@ func (pc *PostController) Publish(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Version *uint64 `json:"version"`
+		Version json.RawMessage `json:"version"`
 	}
-	if err = c.ShouldBindJSON(&input); err != nil || input.Version == nil {
-		c.JSON(409, gin.H{"error": "refresh_required", "message": "Refresh the editor before publishing"})
+	if err = c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(400, gin.H{"error": "invalid publish request"})
 		return
 	}
-	draft, err := pc.service.PublishDraft(user, id, *input.Version)
+	expected, parseErr := optionalDraftVersion(input.Version)
+	if parseErr != nil {
+		c.JSON(400, gin.H{"error": parseErr.Error()})
+		return
+	}
+	if expected == nil {
+		if err = pc.service.PublishPost(user, id); err != nil {
+			pc.draftError(c, user, id, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+		return
+	}
+	draft, err := pc.service.PublishDraft(user, id, *expected)
 	if err != nil {
 		pc.draftError(c, user, id, err)
 		return
@@ -236,4 +288,20 @@ func toPostDetailResponse(post *models.Post) postDetailResponse {
 		CreatedAt: post.CreatedAt,
 		UpdatedAt: post.UpdatedAt,
 	}
+}
+
+// A missing precondition retains the original endpoint contract. An explicitly
+// supplied malformed value must never fall back to that compatibility path.
+func optionalDraftVersion(raw json.RawMessage) (*uint64, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	if strings.TrimSpace(string(raw)) == "null" {
+		return nil, errors.New("invalid draft version")
+	}
+	var value uint64
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, errors.New("invalid draft version")
+	}
+	return &value, nil
 }

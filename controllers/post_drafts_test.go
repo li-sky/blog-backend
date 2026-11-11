@@ -124,8 +124,8 @@ func TestDraftHTTP_PublicIsolationPublishDatesConflictDiscardAndIdempotency(t *t
 	require.Equal(t, 409, conflict.Code)
 	require.Contains(t, conflict.Body.String(), "draft_conflict")
 	require.Equal(t, "private, no-store", conflict.Header().Get("Cache-Control"))
-	require.Equal(t, 409, draftRequest(r, "POST", path+"/publish", nil, true).Code)
-	require.Equal(t, 409, draftRequest(r, "PUT", path, map[string]any{"title": "old client"}, true).Code)
+	require.Equal(t, 409, draftRequest(r, "PUT", path+"/draft", map[string]any{"title": "missing precondition"}, true).Code)
+
 	republished := decodeDraft(t, draftRequest(r, "POST", path+"/publish", map[string]any{"version": saved.Version}, true))
 	require.Equal(t, *published.PublishedAt, *republished.PublishedAt)
 	require.NotNil(t, republished.PublishedUpdatedAt)
@@ -190,4 +190,84 @@ func TestLegacyDraftWithoutHistoricalTimeDoesNotInventFirstPublication(t *testin
 	require.False(t, result.PublicationTimeKnown)
 	require.Nil(t, result.PublishedAt)
 	require.NotNil(t, result.PublishedUpdatedAt)
+}
+
+func TestOriginalPostWriteContractsRemainCompatibleWithVersionedDrafts(t *testing.T) {
+	r, _, _ := draftTestApp(t)
+	created := draftRequest(r, "POST", "/posts", map[string]any{"title": "Initial", "body": "Initial body", "status": "draft", "clientRequestId": "legacy-contract"}, true)
+	require.Equal(t, 201, created.Code, created.Body.String())
+	var initial struct {
+		ID uint `json:"id"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &initial))
+	path := fmt.Sprintf("/posts/%d", initial.ID)
+
+	// The original update endpoint accepts the original payload and returns a
+	// post-shaped editing snapshot, while the public article is unchanged.
+	response := draftRequest(r, "PUT", path, map[string]any{"title": "Saved title", "summary": "Saved summary", "body": "Saved body", "status": "draft"}, true)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	var edited map[string]any
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &edited))
+	require.Equal(t, float64(initial.ID), edited["id"])
+	require.Equal(t, "Saved body", edited["body"])
+	require.Equal(t, "Saved title", edited["title"])
+	require.NotContains(t, edited, "postId")
+	require.NotContains(t, edited, "version")
+	require.NotEmpty(t, edited["createdAt"])
+	require.Equal(t, "private, no-store", response.Header().Get("Cache-Control"))
+	require.Equal(t, 404, draftRequest(r, "GET", path, nil, false).Code)
+
+	// No JSON body retains the original 204 response contract.
+	response = draftRequest(r, "POST", path+"/publish", nil, true)
+	require.Equal(t, 204, response.Code, response.Body.String())
+	require.Empty(t, response.Body.String())
+	published := decodeDraft(t, draftRequest(r, "GET", path+"/draft", nil, true))
+	require.Equal(t, "published", published.Status)
+	require.NotNil(t, published.PublishedAt)
+	firstPublished := *published.PublishedAt
+	response = draftRequest(r, "GET", path, nil, false)
+	require.Contains(t, response.Body.String(), "Saved body")
+
+	// Explicit preconditions still reject stale writes and publishes.
+	saved := decodeDraft(t, draftRequest(r, "PUT", path+"/draft", map[string]any{"title": "New title", "summary": "New summary", "body": "New body", "version": published.Version}, true))
+	response = draftRequest(r, "PUT", path, map[string]any{"title": "Stale", "body": "Stale", "version": published.Version}, true)
+	require.Equal(t, 409, response.Code)
+	require.Contains(t, response.Body.String(), "draft_conflict")
+	response = draftRequest(r, "POST", path+"/publish", map[string]any{"version": published.Version}, true)
+	require.Equal(t, 409, response.Code)
+	require.Contains(t, response.Body.String(), "draft_conflict")
+	response = draftRequest(r, "GET", path, nil, false)
+	require.Contains(t, response.Body.String(), "Saved body")
+	require.NotContains(t, response.Body.String(), "New body")
+	republished := decodeDraft(t, draftRequest(r, "POST", path+"/publish", map[string]any{"version": saved.Version}, true))
+	require.Equal(t, firstPublished, *republished.PublishedAt)
+	require.NotNil(t, republished.PublishedUpdatedAt)
+	require.Equal(t, "New body", republished.Body)
+
+	// An explicitly versioned PUT also keeps its original post response shape.
+	response = draftRequest(r, "PUT", path, map[string]any{"title": "Another title", "body": "Another draft", "version": republished.Version}, true)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &edited))
+	require.Equal(t, "Another draft", edited["body"])
+	require.Equal(t, "published", edited["status"])
+	require.NotContains(t, edited, "postId")
+	response = draftRequest(r, "GET", path, nil, false)
+	require.Contains(t, response.Body.String(), "New body")
+	require.NotContains(t, response.Body.String(), "Another draft")
+
+	// Missing and malformed are deliberately different: malformed values must not
+	// accidentally publish or save through the compatibility path.
+	for _, invalid := range []any{nil, "wrong", -1, 1.5} {
+		response = draftRequest(r, "POST", path+"/publish", map[string]any{"version": invalid}, true)
+		require.Equal(t, 400, response.Code, response.Body.String())
+		response = draftRequest(r, "PUT", path, map[string]any{"title": "Invalid", "body": "Invalid", "version": invalid}, true)
+		require.Equal(t, 400, response.Code, response.Body.String())
+	}
+	afterInvalid := decodeDraft(t, draftRequest(r, "GET", path+"/draft", nil, true))
+	require.Equal(t, "Another draft", afterInvalid.Body)
+	response = draftRequest(r, "POST", path+"/publish", map[string]any{"legacyExtra": "ignored"}, true)
+	require.Equal(t, 204, response.Code, response.Body.String())
+	final := decodeDraft(t, draftRequest(r, "GET", path+"/draft", nil, true))
+	require.Equal(t, firstPublished, *final.PublishedAt)
+	require.Equal(t, "Another draft", final.Body)
 }

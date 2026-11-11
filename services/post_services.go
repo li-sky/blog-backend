@@ -71,6 +71,18 @@ func (s *PostService) CreatePost(author *models.User, post *models.Post) error {
 // UpdatePost remains a compatibility endpoint for older authoring clients.
 // Its payload is always an editing draft, including status:"draft" from old UIs.
 func (s *PostService) UpdatePost(editor *models.User, updated *models.Post) error {
+	return s.updatePost(editor, updated, nil)
+}
+
+// UpdatePostWithVersion lets callers opt into the draft precondition while
+// preserving the original post-shaped response of PUT /posts/:id.
+func (s *PostService) UpdatePostWithVersion(editor *models.User, updated *models.Post, expected uint64) error {
+	return s.updatePost(editor, updated, &expected)
+}
+func (s *PostService) updatePost(editor *models.User, updated *models.Post, expected *uint64) error {
+	if !userHasPermission(editor, "edit_post") {
+		return errors.New("permission denied")
+	}
 	if updated == nil || updated.ID == 0 {
 		return errors.New("post id is required")
 	}
@@ -81,8 +93,26 @@ func (s *PostService) UpdatePost(editor *models.User, updated *models.Post) erro
 	if err != nil {
 		return err
 	}
-	_, err = s.SaveDraft(editor, updated.ID, postSnapshot(updated), post.DraftVersion)
-	return err
+	version := post.DraftVersion
+	if expected != nil {
+		version = *expected
+	}
+	saved, err := s.SaveDraft(editor, updated.ID, postSnapshot(updated), version)
+	if err != nil {
+		return err
+	}
+	// The compatibility response describes the author's saved editing content;
+	// public reads still use the unchanged live snapshot stored in post.
+	*updated = *post
+	updated.Title = saved.Title
+	updated.Summary = saved.Summary
+	updated.Body = saved.Body
+	updated.DraftVersion = saved.Version
+	updated.DraftUpdatedAt = saved.UpdatedAt
+	if saved.UpdatedAt != nil {
+		updated.UpdatedAt = *saved.UpdatedAt
+	}
+	return nil
 }
 
 // PublishPost supports legacy callers without a version. New clients use

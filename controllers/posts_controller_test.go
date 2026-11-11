@@ -293,12 +293,12 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusBadRequest, w.Code)
 
-	// Missing version from stale clients must fail closed
+	// An unknown post still returns not found on the original update endpoint
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPut, "/posts/1", bytes.NewBufferString(`{"title":"t"}`))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusConflict, w.Code)
+	require.Equal(t, http.StatusNotFound, w.Code)
 
 	// Publish bad id + service error
 	r = gin.New()
@@ -318,7 +318,7 @@ func TestPostController_ErrorBranches(t *testing.T) {
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/posts/1/publish", nil)
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusConflict, w.Code)
+	require.Equal(t, http.StatusNotFound, w.Code)
 
 	// Delete bad id + service error
 	r = gin.New()
